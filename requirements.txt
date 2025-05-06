@@ -5,3 +5,6 @@ pillow
 numpy
 torchvision
 kagglehub
+pytorch_lightning
+tqdm
+scikit-learn~=1.6
