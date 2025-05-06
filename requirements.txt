@@ -8,3 +8,4 @@ kagglehub
 pytorch_lightning
 tqdm
 scikit-learn~=1.6
+seaborn
