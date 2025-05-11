@@ -50,17 +50,24 @@ app.layout = html.Div([
             dcc.Graph(id='scatter-plot'),
             html.Div([
                 html.Label('Select Chart:'),
-                dcc.Dropdown(
-                    id='chart-dropdown',
-                    options=[
-                        {'label': 'Parallel Coordinates', 'value': 'parallel-coords'},
-                        {'label': 'Radar Chart', 'value': 'radar'}
+                dcc.Tabs(
+                    id='chart-tabs',
+                    value='parallel-coords',
+                    children=[
+                        dcc.Tab(label='Parallel', value='parallel-coords'),
+                        dcc.Tab(label='Radar Chart', value='radar'),
+                        dcc.Tab(label='Box Plot', value='box-plot'),                       
                     ],
-                    value='parallel-coords',  # Default selection
-                    clearable=False,
-                    style={'width': '60%'}
+                    colors={
+                        "border": "white",
+                        "primary": "#888",
+                        "background": "#f9f9f9"
+                    },
+                    style={'fontWeight': 'bold'}
                 ),
             ], style={'margin': '20px 0 10px 0'}),
+
+            # html.Div(id='boxplot-controls'),
 
             # Parallel coordinates plot (shown by default)
             dcc.Graph(id='parallel-coords-plot'),
@@ -195,9 +202,12 @@ def update_donut_chart(study_hours_per_day, mental_health_rating, social_media_h
 
 @app.callback(
     Output('parallel-coords-plot', 'figure'),
-    Input('chart-dropdown', 'value')
+    Input('chart-tabs', 'value'),
+    Input('search-input', 'value'),
+    # Input('boxplot-metric', 'value'),
+    # Input('performance-threshold', 'value')
 )
-def update_parallel_coords(selected_chart):
+def update_parallel_coords(selected_chart,selected_student):
     features = [
         'study_hours_per_day', 'social_media_hours',
         'sleep_hours', 'attendance_percentage','mental_health_rating'
@@ -214,9 +224,12 @@ def update_parallel_coords(selected_chart):
         )
         return fig
     
-    else:  # Radar chart
-        
-        student_row = df.iloc[0]  # Default to the first student for radar chart
+    elif selected_chart == 'radar':  # Radar chart
+
+        if selected_student and selected_student in df['student_id'].values:
+            student_row = df[df['student_id'] == selected_student].iloc[0]
+        else:
+            student_row = df.iloc[0]  # Default to first student if not found
 
         # Calculate averages for top performers (e.g., exam_score >= 90)
         top_performers = df[df['exam_score'] >= 90]
@@ -265,6 +278,32 @@ def update_parallel_coords(selected_chart):
             ),
             showlegend=True,
             title="Student vs. Top Performers: Normalized Radar Chart"
+        )
+
+        return fig
+
+    # Box Plot
+    elif selected_chart == 'box-plot':
+
+        # Default values if none selected
+        # metric = boxplot_metric if boxplot_metric else 'sleep_hours'
+        # threshold = performance_threshold if performance_threshold is not None else 90
+
+        # # Define high and low performer groups dynamically
+        # df['performance_group'] = df['exam_score'].apply(lambda x: 'High' if x >= threshold else 'Low')
+
+        # Example: Compare sleep hours for high vs. low performers
+        # Define high and low performer groups
+        df['performance_group'] = df['exam_score'].apply(lambda x: 'High' if x >= 90 else 'Low')
+        
+        fig = px.box(
+            df,
+            x='performance_group',
+            y='sleep_hours',
+            color='performance_group',
+            points='all',  # Show all points
+            labels={'sleep_hours': 'Sleep Hours', 'performance_group': 'Performance Group'},
+            title='Sleep Hours: High vs. Low Performers'
         )
 
         return fig
