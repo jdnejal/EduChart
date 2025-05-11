@@ -3,6 +3,7 @@ import plotly.express as px
 import pandas as pd
 import joblib
 import numpy as np
+import plotly.graph_objects as go
 
 df = pd.read_csv("./data/student-habits/student_habits_performance.csv")
 
@@ -46,8 +47,24 @@ app.layout = html.Div([
     html.Div([
         # Left: Scatter plot
         html.Div([
-            dcc.Graph(id='scatter-plot')
-        ], style={'width': '70%', 'display': 'inline-block'}),
+            dcc.Graph(id='scatter-plot'),
+            html.Div([
+                html.Label('Select Chart:'),
+                dcc.Dropdown(
+                    id='chart-dropdown',
+                    options=[
+                        {'label': 'Parallel Coordinates', 'value': 'parallel-coords'},
+                        {'label': 'Radar Chart', 'value': 'radar'}
+                    ],
+                    value='parallel-coords',  # Default selection
+                    clearable=False,
+                    style={'width': '60%'}
+                ),
+            ], style={'margin': '20px 0 10px 0'}),
+
+            # Parallel coordinates plot (shown by default)
+            dcc.Graph(id='parallel-coords-plot'),
+        ], style={'width': '70%', 'display': 'inline-block', 'verticalAlign': 'top'}),
 
         # Right: Controls and prediction output
         html.Div([
@@ -175,6 +192,82 @@ def update_donut_chart(study_hours_per_day, mental_health_rating, social_media_h
     }
 
     return donut_fig
+
+@app.callback(
+    Output('parallel-coords-plot', 'figure'),
+    Input('chart-dropdown', 'value')
+)
+def update_parallel_coords(selected_chart):
+    features = [
+        'study_hours_per_day', 'social_media_hours',
+        'sleep_hours', 'attendance_percentage','mental_health_rating'
+    ]
+
+    if selected_chart == 'parallel-coords':
+        fig = px.parallel_coordinates(
+            df,
+            dimensions=['study_hours_per_day', 'mental_health_rating', 'social_media_hours', 
+                        'netflix_hours', 'sleep_hours', 'exercise_frequency', 'attendance_percentage'],
+            color='exam_score',
+            color_continuous_scale=px.colors.diverging.Tealrose,
+            labels={col: col.replace('_', ' ').title() for col in df.columns}
+        )
+        return fig
+    
+    else:  # Radar chart
+        
+        student_row = df.iloc[0]  # Default to the first student for radar chart
+
+        # Calculate averages for top performers (e.g., exam_score >= 90)
+        top_performers = df[df['exam_score'] >= 90]
+        top_avg = top_performers[features].mean()
+
+        # Get student data
+        student_data = [student_row[feat] for feat in features]
+        top_avg_data = [top_avg[feat] for feat in features]
+
+        # Define min and max for each feature
+        feature_min = [0, 0, 0, 0]      # Minimum possible values
+        feature_max = [12, 12, 10, 100] # Maximum possible values
+
+        def normalize(values, min_vals, max_vals):
+            return [(v - min_v) / (max_v - min_v) if max_v > min_v else 0
+                    for v, min_v, max_v in zip(values, min_vals, max_vals)]
+
+        student_norm = normalize(student_data, feature_min, feature_max)
+        top_avg_norm = normalize(top_avg_data, feature_min, feature_max)
+
+        # Close the loop for radar chart
+        radar_labels = [label.replace('_', ' ').title() for label in features]
+        radar_labels += [radar_labels[0]]
+        student_data += [student_data[0]]
+        top_avg_data += [top_avg_data[0]]
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatterpolar(
+            r=student_norm,
+            theta=radar_labels,
+            fill='toself',
+            name='Student'
+        ))
+        fig.add_trace(go.Scatterpolar(
+            r=top_avg_norm,
+            theta=radar_labels,
+            fill='toself',
+            name='Top Performers Avg'
+        ))
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, 1]
+                )
+            ),
+            showlegend=True,
+            title="Student vs. Top Performers: Normalized Radar Chart"
+        )
+
+        return fig
 
 if __name__ == '__main__':
     app.run(debug=True)
