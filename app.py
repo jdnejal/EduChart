@@ -21,15 +21,16 @@ top_bar = html.Div([
         'font-family': 'arial'
     }),
     dcc.Input(
-        placeholder='Search...',
+        id='search-input',
+        placeholder='Search by student ID...',
         type='text',
+        debounce=True,  # triggers callback only when typing stops
         style={
             'marginRight': '20px',
             'padding': '5px 10px',
             'fontSize': '16px',
             'borderRadius': '5px',
             'border': '1px solid #ccc'
-            
         }
     )
 ], style={
@@ -45,17 +46,7 @@ app.layout = html.Div([
     html.Div([
         # Left: Scatter plot
         html.Div([
-            dcc.Graph(
-                figure=px.scatter(
-                    df,
-                    x='study_hours_per_day',
-                    y='exam_score',
-                    size="attendance_percentage",
-                    color="gender",
-                    size_max=10,
-                    hover_data=["student_id"]
-                )
-            )
+            dcc.Graph(id='scatter-plot')
         ], style={'width': '70%', 'display': 'inline-block'}),
 
         # Right: Controls and prediction output
@@ -101,20 +92,56 @@ app.layout = html.Div([
 ])
 
 @app.callback(
-    Output('donut-chart', 'figure'),
-    [
-        Input('study_hours_per_day', 'value'),
-        Input('mental_health_rating', 'value'),
-        Input('social_media_hours', 'value'),
-        Input('netflix_hours', 'value'),
-        Input('sleep_hours', 'value'),
-        Input('exercise_frequency', 'value'),
-        Input('attendance_percentage', 'value')
-    ]
+    Output('scatter-plot', 'figure'),
+    Input('search-input', 'value')
 )
+def update_scatter_plot(search_value):
+    fig = px.scatter(
+        df,
+        x='study_hours_per_day',
+        y='exam_score',
+        size="attendance_percentage",
+        color="gender",
+        size_max=10,
+        hover_data=["student_id"]
+    )
 
-def update_prediction(study_hours_per_day, mental_health_rating, social_media_hours,
-                      netflix_hours, sleep_hours, exercise_frequency, attendance_percentage):
+    if search_value and search_value.strip():
+        matched = df[df['student_id'].astype(str).str.contains(search_value.strip(), case=False)]
+        if not matched.empty:
+            student = matched.iloc[0]
+            # Zoom around the student's point
+            fig.update_layout(
+                xaxis_range=[student['study_hours_per_day'] - 1, student['study_hours_per_day'] + 1],
+                yaxis_range=[student['exam_score'] - 5, student['exam_score'] + 5]
+            )
+            # Add marker
+            fig.add_trace({
+                'type': 'scatter',
+                'x': [student['study_hours_per_day']],
+                'y': [student['exam_score']],
+                'mode': 'markers+text',
+                'marker': {'color': 'red', 'size': 15},
+                'text': [f"ID: {student['student_id']}"],
+                'textposition': 'top center',
+                'showlegend': False
+            })
+
+    return fig
+
+
+@app.callback(
+    Output('donut-chart', 'figure'),
+    Input('study_hours_per_day', 'value'),
+    Input('mental_health_rating', 'value'),
+    Input('social_media_hours', 'value'),
+    Input('netflix_hours', 'value'),
+    Input('sleep_hours', 'value'),
+    Input('exercise_frequency', 'value'),
+    Input('attendance_percentage', 'value')
+)
+def update_donut_chart(study_hours_per_day, mental_health_rating, social_media_hours,
+                       netflix_hours, sleep_hours, exercise_frequency, attendance_percentage):
 
     # Prepare input for prediction
     input_data = pd.DataFrame({
@@ -130,7 +157,7 @@ def update_prediction(study_hours_per_day, mental_health_rating, social_media_ho
     # Make prediction
     prediction = min(prediction_model.predict(input_data)[0], 100)
 
-    # Create donut chart
+    # Donut chart figure
     donut_fig = {
         'data': [{
             'values': [prediction, 100 - prediction],
