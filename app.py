@@ -59,8 +59,8 @@ app.layout = html.Div([
             # Sliders for input values
             html.Div([
                 html.Label('Study Hours per Day'),
-                dcc.Slider(id='study_hours_per_day', min=0, max=24, step=0.5, value=5,
-                           marks={i: str(i) for i in range(0, 25, 4)}),
+                dcc.Slider(id='study_hours_per_day', min=0, max=12, step=0.5, value=5,
+                           marks={i: str(i) for i in range(0, 13, 1)}),
 
                 html.Label('Mental Health Rating'),
                 dcc.Slider(id='mental_health_rating', min=1, max=10, step=0.1, value=7,
@@ -75,8 +75,8 @@ app.layout = html.Div([
                            marks={i: str(i) for i in range(0, 11, 2)}),
 
                 html.Label('Sleep Hours'),
-                dcc.Slider(id='sleep_hours', min=0, max=24, step=0.5, value=7,
-                           marks={i: str(i) for i in range(0, 25, 4)}),
+                dcc.Slider(id='sleep_hours', min=0, max=12, step=0.5, value=7,
+                           marks={i: str(i) for i in range(0, 13, 1)}),
 
                 html.Label('Exercise Frequency (per week)'),
                 dcc.Slider(id='exercise_frequency', min=0, max=7, step=1, value=3,
