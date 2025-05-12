@@ -15,7 +15,7 @@ app = Dash()
 # Top bar
 top_bar = html.Div([
     html.Div("Edu Chart", style={
-        'fontSize': '28px',
+        'fontSize': '34px',
         'fontWeight': 'bold',
         'color': 'white',
         'marginLeft': '20px',
@@ -39,7 +39,7 @@ top_bar = html.Div([
     'justifyContent': 'space-between',
     'alignItems': 'center',
     'backgroundColor': '#007BFF',
-    'padding': '10px 0'
+    'padding': '10px 0',
 })
 
 app.layout = html.Div([
