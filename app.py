@@ -12,6 +12,15 @@ prediction_model = joblib.load('models/prediction_model.pkl')
 
 app = Dash()
 
+selectable_features = [
+    "Assignment_Completion_Rate (%)", 
+    "Attendance_Rate (%)",   
+    "Time_Spent_on_Social_Media (hours/week)", 
+    "Study_Hours_per_Week", 
+    "Online_Courses_Completed",
+    "Exam_Score (%)"
+]
+
 # Top bar
 top_bar = html.Div([
     html.Div("Edu Chart", style={
@@ -47,7 +56,29 @@ app.layout = html.Div([
     html.Div([
         # Left: Scatter plot
         html.Div([
+            # Controls above the scatter plot
+            html.Div([
+                html.Span(id='visible-count', style={'fontWeight': 'bold', 'marginRight': '20px'}),
+
+                html.Label("X-axis:"),
+                dcc.Dropdown(
+                    id='x-axis-dropdown',
+                    options=[{'label': f, 'value': f} for f in selectable_features],
+                    value='Study_Hours_per_Week',
+                    clearable=False,
+                    style={'width': '200px', 'display': 'inline-block', 'marginRight': '20px'}
+                ),
+                html.Label("Y-axis:"),
+                dcc.Dropdown(
+                    id='y-axis-dropdown',
+                    options=[{'label': f, 'value': f} for f in selectable_features],
+                    value='Exam_Score (%)',
+                    clearable=False,
+                    style={'width': '200px', 'display': 'inline-block'}
+                )
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '10px'}),
             dcc.Graph(id='scatter-plot'),
+
             html.Div([
                 html.Label('Select Chart:'),
                 dcc.Tabs(
@@ -125,38 +156,52 @@ app.layout = html.Div([
 
 @app.callback(
     Output('scatter-plot', 'figure'),
-    Input('search-input', 'value')
+    Output('visible-count', 'children'),
+    Input('search-input', 'value'),
+    Input('x-axis-dropdown', 'value'),
+    Input('y-axis-dropdown', 'value')
 )
-def update_scatter_plot(search_value):
+def update_scatter_plot(search_value, x_axis, y_axis):
+    filtered_df = df.copy()
+
+    if search_value and search_value.strip():
+        matched = filtered_df[filtered_df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
+        if not matched.empty:
+            student = matched.iloc[0]
+            zoom_x = [student[x_axis] - 2, student[x_axis] + 2]
+            zoom_y = [student[y_axis] - 10, student[y_axis] + 10]
+        else:
+            zoom_x = zoom_y = None
+    else:
+        zoom_x = zoom_y = None
+
     fig = px.scatter(
-        df,
-        x='Study_Hours_per_Week',
-        y='Assignment_Completion_Rate (%)',
+        filtered_df,
+        x=x_axis,
+        y=y_axis,
         size="Attendance_Rate (%)",
         color="gender" if "gender" in df.columns else None,
         size_max=10,
         hover_data=["Student_ID"]
     )
 
-    if search_value and search_value.strip():
-        matched = df[df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
-        if not matched.empty:
-            student = matched.iloc[0]
-            fig.update_layout(
-                xaxis_range=[student['Study_Hours_per_Week'] - 2, student['Study_Hours_per_Week'] + 2],
-                yaxis_range=[student['Assignment_Completion_Rate (%)'] - 10, student['Assignment_Completion_Rate (%)'] + 10]
-            )
-            fig.add_trace(go.Scatter(
-                x=[student['Study_Hours_per_Week']],
-                y=[student['Assignment_Completion_Rate (%)']],
-                mode='markers+text',
-                marker=dict(color='red', size=15),
-                text=[f"ID: {student['Student_ID']}"],
-                textposition='top center',
-                showlegend=False
-            ))
+    if zoom_x and zoom_y:
+        fig.update_layout(
+            xaxis_range=zoom_x,
+            yaxis_range=zoom_y
+        )
+        fig.add_trace(go.Scatter(
+            x=[student[x_axis]],
+            y=[student[y_axis]],
+            mode='markers+text',
+            marker=dict(color='red', size=15),
+            text=[f"ID: {student['Student_ID']}"],
+            textposition='top center',
+            showlegend=False
+        ))
 
-    return fig
+    return fig, f"Students shown: {len(filtered_df)}"
+
 
 
 @app.callback(
