@@ -60,6 +60,19 @@ app.layout = html.Div([
             html.Div([
                 html.Span(id='visible-count', style={'fontWeight': 'bold', 'marginRight': '20px'}),
 
+                html.Label("Number of Students to Display:"),
+                html.Div([
+                    dcc.Slider(
+                        id='student-count-slider',
+                        min=100,
+                        max=len(df),
+                        step=100,
+                        value=1000,
+                        marks={i: str(i) for i in range(100, len(df)+1, 1000)},
+                        tooltip={"placement": "bottom", "always_visible": True}
+                    )
+                ], style={'width': '300px', 'marginRight': '20px'}),
+
                 html.Label("X-axis:"),
                 dcc.Dropdown(
                     id='x-axis-dropdown',
@@ -159,10 +172,11 @@ app.layout = html.Div([
     Output('visible-count', 'children'),
     Input('search-input', 'value'),
     Input('x-axis-dropdown', 'value'),
-    Input('y-axis-dropdown', 'value')
+    Input('y-axis-dropdown', 'value'),
+    Input('student-count-slider', 'value')  # ← Add this line
 )
-def update_scatter_plot(search_value, x_axis, y_axis):
-    filtered_df = df.copy()
+def update_scatter_plot(search_value, x_axis, y_axis, student_count):
+    filtered_df = df.sample(n=student_count, random_state=42).copy()
 
     if search_value and search_value.strip():
         matched = filtered_df[filtered_df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
