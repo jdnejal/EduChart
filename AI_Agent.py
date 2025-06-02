@@ -36,8 +36,8 @@ agent = create_pandas_dataframe_agent(
     agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     )       
 
-# question ="Summarize the data?"
-# response=agent.invoke(question) 
-# print(response['output'])
+question ="return student_ids of interesting students and why they are interesting?"
+response=agent.invoke(question) 
+print(response['output'])
 
 
