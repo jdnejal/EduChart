@@ -1,10 +1,11 @@
-from dash import Dash, html, dcc, callback, Output, Input, State, ALL, MATCH
+from dash import Dash, html, dcc, callback, Output, Input, State
 import plotly.express as px
 import pandas as pd
 import joblib
 import numpy as np
 import plotly.graph_objects as go
-import uuid
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 df = pd.read_csv("./data/student_performance_large_dataset.csv")
 
@@ -23,13 +24,34 @@ selectable_features = [
 ]
 
 # Custom CSS styles
-tile_style = {
+small_tile_style = {
     'backgroundColor': 'white',
-    'borderRadius': '15px',
-    'boxShadow': '0 4px 15px rgba(0, 0, 0, 0.1)',
+    'borderRadius': '12px',
+    'boxShadow': '0 3px 10px rgba(0, 0, 0, 0.1)',
+    'padding': '15px',
+    'margin': '8px',
+    'border': '1px solid #e0e0e0',
+    'height': '335px'
+}
+
+prediction_tile_style = {
+    'backgroundColor': 'white',
+    'borderRadius': '12px',
+    'boxShadow': '0 3px 10px rgba(0, 0, 0, 0.1)',
     'padding': '20px',
-    'margin': '15px',
-    'border': '1px solid #e0e0e0'
+    'margin': '8px',
+    'border': '1px solid #e0e0e0',
+    'height': '520px'
+}
+
+chatbot_tile_style = {
+    'backgroundColor': 'white',
+    'borderRadius': '12px',
+    'boxShadow': '0 3px 10px rgba(0, 0, 0, 0.1)',
+    'padding': '15px',
+    'margin': '8px',
+    'border': '1px solid #e0e0e0',
+    'height': '150px'
 }
 
 top_bar_style = {
@@ -37,8 +59,8 @@ top_bar_style = {
     'justifyContent': 'space-between',
     'alignItems': 'center',
     'backgroundColor': '#2c3e50',
-    'padding': '15px 30px',
-    'boxShadow': '0 2px 10px rgba(0, 0, 0, 0.15)',
+    'padding': '12px 30px',
+    'boxShadow': '0 2px 8px rgba(0, 0, 0, 0.15)',
     'position': 'sticky',
     'top': '0',
     'zIndex': '1000'
@@ -46,8 +68,9 @@ top_bar_style = {
 
 main_container_style = {
     'backgroundColor': '#f8f9fa',
-    'minHeight': '100vh',
-    'fontFamily': 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+    'height': '100vh',
+    'fontFamily': 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+    'overflow': 'hidden'
 }
 
 # Top bar component
@@ -55,7 +78,7 @@ def create_top_bar():
     return html.Div([
         html.Div([
             html.H1("📊 EduChart", style={
-                'fontSize': '28px',
+                'fontSize': '24px',
                 'fontWeight': '600',
                 'color': 'white',
                 'margin': '0',
@@ -67,267 +90,267 @@ def create_top_bar():
             html.Div([
                 html.Label("Sample Size:", style={
                     'color': 'white', 
-                    'marginRight': '10px',
-                    'fontSize': '14px',
+                    'marginRight': '8px',
+                    'fontSize': '13px',
                     'fontWeight': '500'
                 }),
                 dcc.Slider(
                     id='student-count-slider',
                     min=100,
-                    max=min(5000, len(df)),
+                    max=min(3000, len(df)),
                     step=100,
-                    value=1000,
-                    marks={i: {'label': f'{i}', 'style': {'color': 'white', 'fontSize': '12px'}} 
-                           for i in range(100, min(5001, len(df)+1), 1000)},
+                    value=800,
+                    marks={i: {'label': f'{i}', 'style': {'color': 'white', 'fontSize': '10px'}} 
+                           for i in range(100, min(3001, len(df)+1), 500)},
                     tooltip={"placement": "bottom", "always_visible": True}
                 )
-            ], style={'width': '200px', 'marginRight': '20px'}),
+            ], style={'width': '400px', 'marginRight': '15px'}),
             
             dcc.Input(
                 id='search-input',
-                placeholder='🔍 Search by student ID...',
+                placeholder='🔍 Search student ID...',
                 type='text',
                 debounce=True,
                 style={
-                    'padding': '8px 15px',
-                    'fontSize': '14px',
-                    'borderRadius': '25px',
+                    'padding': '6px 12px',
+                    'fontSize': '13px',
+                    'borderRadius': '20px',
                     'border': 'none',
                     'outline': 'none',
-                    'width': '250px',
+                    'width': '200px',
                     'backgroundColor': 'white'
                 }
             )
         ], style={'display': 'flex', 'alignItems': 'center'})
     ], style=top_bar_style)
 
-# Scatter plot tile
+# Small visualization tiles
 def create_scatter_tile():
     return html.Div([
-        html.Div([
-            html.H3("📈 Student Performance Scatter Plot", style={
-                'margin': '0 0 20px 0',
-                'color': '#2c3e50',
-                'fontSize': '20px',
-                'fontWeight': '600'
-            }),
-            
-            html.Div([
-                html.Span(id='visible-count', style={
-                    'fontWeight': '600', 
-                    'color': '#34495e',
-                    'backgroundColor': '#ecf0f1',
-                    'padding': '5px 12px',
-                    'borderRadius': '15px',
-                    'fontSize': '12px',
-                    'marginRight': '20px'
-                }),
-                
-                html.Div([
-                    html.Label("X-axis:", style={'marginRight': '8px', 'fontWeight': '500'}),
-                    dcc.Dropdown(
-                        id='x-axis-dropdown',
-                        options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
-                        value='Study_Hours_per_Week',
-                        clearable=False,
-                        style={'width': '180px', 'fontSize': '13px'}
-                    )
-                ], style={'display': 'flex', 'alignItems': 'center', 'marginRight': '20px'}),
-                
-                html.Div([
-                    html.Label("Y-axis:", style={'marginRight': '8px', 'fontWeight': '500'}),
-                    dcc.Dropdown(
-                        id='y-axis-dropdown',
-                        options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
-                        value='Exam_Score (%)',
-                        clearable=False,
-                        style={'width': '180px', 'fontSize': '13px'}
-                    )
-                ], style={'display': 'flex', 'alignItems': 'center'})
-            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'flexWrap': 'wrap', 'gap': '10px'}),
-            
-            dcc.Graph(id='scatter-plot', style={'height': '400px'})
-        ])
-    ], style=tile_style)
-
-# Prediction tile
-def create_prediction_tile():
-    return html.Div([
-        html.H3("🎯 Exam Score Prediction", style={
-            'textAlign': 'center',
-            'margin': '0 0 20px 0',
+        html.H4("📈 Performance Scatter", style={
+            'margin': '0 0 10px 0',
             'color': '#2c3e50',
-            'fontSize': '20px',
+            'fontSize': '16px',
             'fontWeight': '600'
         }),
         
-        dcc.Graph(id='donut-chart', style={'height': '200px'}),
-        
         html.Div([
-            html.Div([
-                html.Label('Assignment Completion (%)', style={'fontWeight': '500', 'marginBottom': '5px'}),
-                dcc.Slider(
-                    id='assignment_completion', 
-                    min=0, max=100, step=1, value=85,
-                    marks={i: str(i) for i in range(0, 101, 25)},
-                    tooltip={"placement": "bottom", "always_visible": True}
-                )
-            ], style={'marginBottom': '20px'}),
-            
-            html.Div([
-                html.Label('Attendance Rate (%)', style={'fontWeight': '500', 'marginBottom': '5px'}),
-                dcc.Slider(
-                    id='attendance_rate', 
-                    min=0, max=100, step=1, value=90,
-                    marks={i: str(i) for i in range(0, 101, 25)},
-                    tooltip={"placement": "bottom", "always_visible": True}
-                )
-            ], style={'marginBottom': '20px'}),
-            
-            html.Div([
-                html.Label('Social Media (hrs/week)', style={'fontWeight': '500', 'marginBottom': '5px'}),
-                dcc.Slider(
-                    id='social_media_hours', 
-                    min=0, max=40, step=1, value=10,
-                    marks={i: str(i) for i in range(0, 41, 10)},
-                    tooltip={"placement": "bottom", "always_visible": True}
-                )
-            ], style={'marginBottom': '20px'}),
-            
-            html.Div([
-                html.Label('Study Hours/Week', style={'fontWeight': '500', 'marginBottom': '5px'}),
-                dcc.Slider(
-                    id='study_hours_per_week', 
-                    min=0, max=40, step=1, value=15,
-                    marks={i: str(i) for i in range(0, 41, 10)},
-                    tooltip={"placement": "bottom", "always_visible": True}
-                )
-            ], style={'marginBottom': '20px'}),
-            
-            html.Div([
-                html.Label('Online Courses Completed', style={'fontWeight': '500', 'marginBottom': '5px'}),
-                dcc.Slider(
-                    id='online_courses', 
-                    min=0, max=20, step=1, value=2,
-                    marks={i: str(i) for i in range(0, 21, 5)},
-                    tooltip={"placement": "bottom", "always_visible": True}
-                )
-            ], style={'marginBottom': '10px'})
-        ])
-    ], style={**tile_style, 'height': 'fit-content'})
-
-# Add tile button
-def create_add_tile_button():
-    return html.Div([
-        html.Button([
-            html.Span("➕", style={'marginRight': '8px', 'fontSize': '16px'}),
-            "Add New Visualization"
-        ], 
-        id='add-tile-btn',
-        style={
-            'width': '100%',
-            'padding': '15px',
-            'backgroundColor': '#3498db',
-            'color': 'white',
-            'border': 'none',
-            'borderRadius': '15px',
-            'fontSize': '16px',
-            'fontWeight': '600',
-            'cursor': 'pointer',
-            'transition': 'all 0.3s ease',
-            'boxShadow': '0 4px 15px rgba(52, 152, 219, 0.3)'
-        })
-    ], style={**tile_style, 'textAlign': 'center'})
-
-# Dynamic tile creation
-def create_visualization_tile(tile_id):
-    return html.Div([
-        html.Div([
-            html.H3("📊 Custom Visualization", style={
-                'margin': '0 0 15px 0',
-                'color': '#2c3e50',
-                'fontSize': '18px',
-                'fontWeight': '600',
-                'display': 'inline-block'
-            }),
-            html.Button("✕", 
-                id={'type': 'close-tile', 'index': tile_id},
-                style={
-                    'float': 'right',
-                    'backgroundColor': '#e74c3c',
-                    'color': 'white',
-                    'border': 'none',
-                    'borderRadius': '50%',
-                    'width': '25px',
-                    'height': '25px',
-                    'cursor': 'pointer',
-                    'fontSize': '12px'
-                }
-            )
-        ]),
-        
-        html.Div([
-            html.Label("Chart Type:", style={'fontWeight': '500', 'marginRight': '10px'}),
             dcc.Dropdown(
-                id={'type': 'chart-selector', 'index': tile_id},
-                options=[
-                    {'label': '📈 Parallel Coordinates', 'value': 'parallel-coords'},
-                    {'label': '🎯 Radar Chart', 'value': 'radar'},
-                    {'label': '📦 Box Plot', 'value': 'box-plot'}
-                ],
-                value='parallel-coords',
+                id='x-axis-dropdown',
+                options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
+                value='Study_Hours_per_Week',
                 clearable=False,
-                style={'width': '200px', 'fontSize': '13px'}
+                style={'width': '48%', 'fontSize': '11px', 'display': 'inline-block', 'marginRight': '4%'}
+            ),
+            dcc.Dropdown(
+                id='y-axis-dropdown',
+                options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
+                value='Exam_Score (%)',
+                clearable=False,
+                style={'width': '48%', 'fontSize': '11px', 'display': 'inline-block'}
             )
-        ], style={'marginBottom': '15px'}),
+        ], style={'marginBottom': '8px'}),
+        
+        dcc.Graph(id='scatter-plot', style={'height': '240px'})
+    ], style=small_tile_style)
+
+def create_dimensionality_tile():
+    return html.Div([
+        html.H4("🎯 Dimensionality Reduction", style={
+            'margin': '0 0 10px 0',
+            'color': '#2c3e50',
+            'fontSize': '16px',
+            'fontWeight': '600'
+        }),
         
         html.Div([
-            html.Label("Features:", style={'fontWeight': '500', 'marginBottom': '5px'}),
             dcc.Dropdown(
-                id={'type': 'feature-selector', 'index': tile_id},
+                id='dim-reduction-method',
+                options=[
+                    {'label': 'PCA', 'value': 'pca'},
+                    {'label': 't-SNE', 'value': 'tsne'}
+                ],
+                value='pca',
+                clearable=False,
+                style={'width': '100%', 'fontSize': '11px'}
+            )
+        ], style={'marginBottom': '8px'}),
+        
+        dcc.Graph(id='dim-reduction-plot', style={'height': '240px'})
+    ], style=small_tile_style)
+
+def create_parallel_tile():
+    return html.Div([
+        html.H4("📊 Parallel Coordinates", style={
+            'margin': '0 0 10px 0',
+            'color': '#2c3e50',
+            'fontSize': '16px',
+            'fontWeight': '600'
+        }),
+        
+        html.Div([
+            dcc.Dropdown(
+                id='parallel-features',
                 options=[{'label': col.replace('_', ' '), 'value': col} 
                         for col in df.columns if col not in ['student_id', 'Student_ID']],
                 value=[
                     "Assignment_Completion_Rate (%)",
                     "Attendance_Rate (%)",
-                    "Time_Spent_on_Social_Media (hours/week)",
-                    "Study_Hours_per_Week"
+                    "Study_Hours_per_Week",
+                    "Exam_Score (%)"
                 ],
                 multi=True,
-                placeholder="Select features",
-                style={'fontSize': '13px'}
+                style={'fontSize': '11px'}
             )
-        ], style={'marginBottom': '15px'}),
+        ], style={'marginBottom': '8px'}),
         
-        dcc.Graph(id={'type': 'dynamic-chart', 'index': tile_id}, style={'height': '400px'})
-    ], style=tile_style, id={'type': 'tile-container', 'index': tile_id})
+        dcc.Graph(id='parallel-plot', style={'height': '240px'})
+    ], style=small_tile_style)
+
+def create_radar_tile():
+    return html.Div([
+        html.H4("🎯 Student Radar", style={
+            'margin': '0 0 10px 0',
+            'color': '#2c3e50',
+            'fontSize': '16px',
+            'fontWeight': '600'
+        }),
+        
+        html.Div([
+            dcc.Dropdown(
+                id='radar-features',
+                options=[{'label': col.replace('_', ' '), 'value': col} 
+                        for col in df.columns if col not in ['student_id', 'Student_ID', 'Exam_Score (%)']],
+                value=[
+                    "Assignment_Completion_Rate (%)",
+                    "Attendance_Rate (%)",
+                    "Study_Hours_per_Week",
+                    "Online_Courses_Completed"
+                ],
+                multi=True,
+                style={'fontSize': '11px'}
+            )
+        ], style={'marginBottom': '8px'}),
+        
+        dcc.Graph(id='radar-plot', style={'height': '240px'})
+    ], style=small_tile_style)
+
+# Prediction tile
+def create_prediction_tile():
+    return html.Div([
+        html.H3("🎯 Score Prediction", style={
+            'textAlign': 'center',
+            'margin': '0 0 15px 0',
+            'color': '#2c3e50',
+            'fontSize': '18px',
+            'fontWeight': '600'
+        }),
+        
+        dcc.Graph(id='donut-chart', style={'height': '150px'}),
+        
+        html.Div([
+            html.Div([
+                html.Label('Assignment (%)', style={'fontWeight': '500', 'fontSize': '12px'}),
+                dcc.Slider(id='assignment_completion', min=0, max=100, step=1, value=85,
+                          marks={0: '0', 50: '50', 100: '100'}, tooltip={"always_visible": True})
+            ], style={'marginBottom': '12px'}),
+            
+            html.Div([
+                html.Label('Attendance (%)', style={'fontWeight': '500', 'fontSize': '12px'}),
+                dcc.Slider(id='attendance_rate', min=0, max=100, step=1, value=90,
+                          marks={0: '0', 50: '50', 100: '100'}, tooltip={"always_visible": True})
+            ], style={'marginBottom': '12px'}),
+            
+            html.Div([
+                html.Label('Social Media (h/w)', style={'fontWeight': '500', 'fontSize': '12px'}),
+                dcc.Slider(id='social_media_hours', min=0, max=40, step=1, value=10,
+                          marks={0: '0', 20: '20', 40: '40'}, tooltip={"always_visible": True})
+            ], style={'marginBottom': '12px'}),
+            
+            html.Div([
+                html.Label('Study Hours/Week', style={'fontWeight': '500', 'fontSize': '12px'}),
+                dcc.Slider(id='study_hours_per_week', min=0, max=40, step=1, value=15,
+                          marks={0: '0', 20: '20', 40: '40'}, tooltip={"always_visible": True})
+            ], style={'marginBottom': '12px'}),
+            
+            html.Div([
+                html.Label('Online Courses', style={'fontWeight': '500', 'fontSize': '12px'}),
+                dcc.Slider(id='online_courses', min=0, max=20, step=1, value=2,
+                          marks={0: '0', 10: '10', 20: '20'}, tooltip={"always_visible": True})
+            ])
+        ])
+    ], style=prediction_tile_style)
+
+# Chatbot tile
+def create_chatbot_tile():
+    return html.Div([
+        html.H4("💬 AI Assistant", style={
+            'margin': '0 0 10px 0',
+            'color': '#2c3e50',
+            'fontSize': '16px',
+            'fontWeight': '600'
+        }),
+        
+        html.Div([
+            dcc.Textarea(
+                id='chatbot-input',
+                placeholder='Ask me about the student data...',
+                style={
+                    'width': '93%',
+                    'height': '50px',
+                    'padding': '10px',
+                    'border': '1px solid #ddd',
+                    'borderRadius': '8px',
+                    'fontSize': '13px',
+                    'resize': 'none',
+                    'fontFamily': 'inherit'
+                }
+            ),
+            html.Button('Send', 
+                id='chatbot-send',
+                style={
+                    'marginTop': '8px',
+                    'padding': '6px 15px',
+                    'backgroundColor': '#3498db',
+                    'color': 'white',
+                    'border': 'none',
+                    'borderRadius': '5px',
+                    'cursor': 'pointer',
+                    'fontSize': '12px',
+                    'fontWeight': '500'
+                }
+            )
+        ])
+    ], style=chatbot_tile_style)
 
 # Main layout
 app.layout = html.Div([
     create_top_bar(),
     
     html.Div([
-        # Left column - main visualizations
+        # Left section - 4 small visualization tiles in 2x2 grid
         html.Div([
-            create_scatter_tile(),
-            create_add_tile_button(),
-            html.Div(id='dynamic-tiles-container', children=[])
-        ], style={'width': '70%', 'display': 'inline-block', 'verticalAlign': 'top'}),
+            html.Div([
+                html.Div([create_scatter_tile()], style={'width': '50%', 'display': 'inline-block'}),
+                html.Div([create_dimensionality_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
+            ]),
+            html.Div([
+                html.Div([create_parallel_tile()], style={'width': '50%', 'display': 'inline-block'}),
+                html.Div([create_radar_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
+            ])
+        ], style={'width': '75%', 'display': 'inline-block', 'verticalAlign': 'top'}),
         
-        # Right column - prediction
+        # Right section - prediction model and chatbot
         html.Div([
-            create_prediction_tile()
-        ], style={'width': '28%', 'display': 'inline-block', 'verticalAlign': 'top'})
-    ], style={'padding': '0 20px'})
+            create_prediction_tile(),
+            create_chatbot_tile()
+        ], style={'width': '25%', 'display': 'inline-block', 'verticalAlign': 'top'})
+    ], style={'padding': '5px 5px', 'height': 'calc(100vh - 60px)', 'overflow': 'hidden'})
 ], style=main_container_style)
-
-# Store for managing tiles
-app.layout.children.append(dcc.Store(id='tiles-store', data=[]))
 
 # Callbacks
 @app.callback(
     Output('scatter-plot', 'figure'),
-    Output('visible-count', 'children'),
     Input('search-input', 'value'),
     Input('x-axis-dropdown', 'value'),
     Input('y-axis-dropdown', 'value'),
@@ -336,48 +359,188 @@ app.layout.children.append(dcc.Store(id='tiles-store', data=[]))
 def update_scatter_plot(search_value, x_axis, y_axis, student_count):
     filtered_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
 
-    if search_value and search_value.strip():
-        matched = filtered_df[filtered_df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
-        if not matched.empty:
-            student = matched.iloc[0]
-            zoom_x = [max(0, student[x_axis] - 2), student[x_axis] + 2]
-            zoom_y = [max(0, student[y_axis] - 10), student[y_axis] + 10]
-        else:
-            zoom_x = zoom_y = None
-    else:
-        zoom_x = zoom_y = None
-
     fig = px.scatter(
         filtered_df,
         x=x_axis,
         y=y_axis,
         size="Attendance_Rate (%)",
         color="Exam_Score (%)",
-        size_max=12,
+        size_max=8,
         hover_data=["Student_ID"],
         color_continuous_scale="viridis"
+    )
+    
+    if search_value and search_value.strip():
+        matched = filtered_df[filtered_df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
+        if not matched.empty:
+            student = matched.iloc[0]
+            fig.add_trace(go.Scatter(
+                x=[student[x_axis]],
+                y=[student[y_axis]],
+                mode='markers',
+                marker=dict(color='red', size=12, symbol='star'),
+                name=f"ID: {student['Student_ID']}",
+                showlegend=False
+            ))
+    
+    fig.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=10),
+        margin=dict(l=30, r=30, t=20, b=30),
+        showlegend=False
+    )
+
+    return fig
+
+@app.callback(
+    Output('dim-reduction-plot', 'figure'),
+    Input('dim-reduction-method', 'value'),
+    Input('student-count-slider', 'value')
+)
+def update_dim_reduction_plot(method, student_count):
+    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
+    
+    # Select numeric features for dimensionality reduction
+    numeric_features = [
+        "Assignment_Completion_Rate (%)",
+        "Attendance_Rate (%)",
+        "Time_Spent_on_Social_Media (hours/week)",
+        "Study_Hours_per_Week",
+        "Online_Courses_Completed"
+    ]
+    
+    X = sample_df[numeric_features].fillna(0)
+    
+    if method == 'pca':
+        reducer = PCA(n_components=2, random_state=42)
+        X_reduced = reducer.fit_transform(X)
+        title = f"PCA (Explained Variance: {sum(reducer.explained_variance_ratio_):.2%})"
+    else:  # tsne
+        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(X)-1))
+        X_reduced = reducer.fit_transform(X)
+        title = "t-SNE Visualization"
+    
+    fig = px.scatter(
+        x=X_reduced[:, 0],
+        y=X_reduced[:, 1],
+        color=sample_df['Exam_Score (%)'],
+        color_continuous_scale="viridis",
+        title=title
     )
     
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(size=12),
-        margin=dict(l=40, r=40, t=40, b=40)
+        font=dict(size=10),
+        margin=dict(l=30, r=30, t=30, b=30),
+        showlegend=False,
+        title_font_size=12
     )
+    
+    return fig
 
-    if zoom_x and zoom_y:
-        fig.update_layout(xaxis_range=zoom_x, yaxis_range=zoom_y)
-        fig.add_trace(go.Scatter(
-            x=[student[x_axis]],
-            y=[student[y_axis]],
-            mode='markers+text',
-            marker=dict(color='red', size=15, symbol='star'),
-            text=[f"ID: {student['Student_ID']}"],
-            textposition='top center',
-            showlegend=False
-        ))
+@app.callback(
+    Output('parallel-plot', 'figure'),
+    Input('parallel-features', 'value'),
+    Input('student-count-slider', 'value')
+)
+def update_parallel_plot(selected_features, student_count):
+    if not selected_features or len(selected_features) < 3:
+        return go.Figure().add_annotation(
+            text="Select at least 3 features",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=12, color="gray")
+        )
+    
+    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
+    
+    fig = px.parallel_coordinates(
+        sample_df,
+        dimensions=selected_features[:5],
+        color='Exam_Score (%)',
+        color_continuous_scale='viridis'
+    )
+    
+    fig.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=9),
+        margin=dict(l=20, r=20, t=20, b=20)
+    )
+    
+    return fig
 
-    return fig, f"📊 {len(filtered_df):,} students"
+@app.callback(
+    Output('radar-plot', 'figure'),
+    Input('radar-features', 'value'),
+    Input('search-input', 'value'),
+    Input('student-count-slider', 'value')
+)
+def update_radar_plot(selected_features, search_student, student_count):
+    if not selected_features or len(selected_features) < 3:
+        return go.Figure().add_annotation(
+            text="Select at least 3 features",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=12, color="gray")
+        )
+    
+    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
+    
+    # Get student data
+    if search_student and search_student.strip():
+        matched = sample_df[sample_df['Student_ID'].astype(str).str.contains(search_student.strip(), case=False)]
+        student_row = matched.iloc[0] if not matched.empty else sample_df.iloc[0]
+    else:
+        student_row = sample_df.iloc[0]
+    
+    # Get top performers average
+    top_performers = sample_df[sample_df['Exam_Score (%)'] >= sample_df['Exam_Score (%)'].quantile(0.8)]
+    top_avg = top_performers[selected_features].mean()
+    
+    # Normalize data
+    features = selected_features[:5]
+    feature_min = [sample_df[feat].min() for feat in features]
+    feature_max = [sample_df[feat].max() for feat in features]
+    
+    def normalize(values, min_vals, max_vals):
+        return [(v - min_v) / (max_v - min_v) if max_v > min_v else 0
+                for v, min_v, max_v in zip(values, min_vals, max_vals)]
+
+    student_data = [student_row[feat] for feat in features]
+    student_norm = normalize(student_data, feature_min, feature_max)
+    top_avg_norm = normalize(top_avg.values, feature_min, feature_max)
+
+    theta_labels = [label.replace('_', ' ').replace(' (%)', '') for label in features]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=student_norm + [student_norm[0]],
+        theta=theta_labels + [theta_labels[0]],
+        fill='toself',
+        name='Student',
+        line_color='#3498db'
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=top_avg_norm + [top_avg_norm[0]],
+        theta=theta_labels + [theta_labels[0]],
+        fill='toself',
+        name='Top Avg',
+        line_color='#e74c3c',
+        opacity=0.6
+    ))
+    
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        showlegend=True,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=9),
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend=dict(font=dict(size=8))
+    )
+    
+    return fig
 
 @app.callback(
     Output('donut-chart', 'figure'),
@@ -414,159 +577,19 @@ def update_donut_chart(assignment_completion, attendance_rate, social_media_hour
     fig.add_annotation(
         text=f"<b>{prediction:.1f}%</b>",
         x=0.5, y=0.5,
-        font_size=24,
+        font_size=20,
         font_color=colors[0],
         showarrow=False
     )
     
     fig.update_layout(
         showlegend=False,
-        margin=dict(t=20, b=20, l=20, r=20),
+        margin=dict(t=10, b=10, l=10, r=10),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)'
     )
 
     return fig
-
-@app.callback(
-    Output('dynamic-tiles-container', 'children'),
-    Output('tiles-store', 'data'),
-    Input('add-tile-btn', 'n_clicks'),
-    Input({'type': 'close-tile', 'index': ALL}, 'n_clicks'),
-    State('tiles-store', 'data'),
-    prevent_initial_call=True
-)
-def manage_tiles(add_clicks, close_clicks, current_tiles):
-    from dash import ctx
-    
-    if not ctx.triggered:
-        return [], current_tiles
-    
-    trigger_id = ctx.triggered[0]['prop_id']
-    
-    if 'add-tile-btn' in trigger_id and add_clicks:
-        new_tile_id = str(uuid.uuid4())
-        current_tiles.append(new_tile_id)
-    elif 'close-tile' in trigger_id:
-        # Extract tile ID from the trigger
-        import json
-        trigger_data = json.loads(trigger_id.split('.')[0])
-        tile_to_remove = trigger_data['index']
-        if tile_to_remove in current_tiles:
-            current_tiles.remove(tile_to_remove)
-    
-    # Generate tile components
-    tiles = [create_visualization_tile(tile_id) for tile_id in current_tiles]
-    
-    return tiles, current_tiles
-
-@app.callback(
-    Output({'type': 'dynamic-chart', 'index': MATCH}, 'figure'),
-    Input({'type': 'chart-selector', 'index': MATCH}, 'value'),
-    Input({'type': 'feature-selector', 'index': MATCH}, 'value'),
-    Input('search-input', 'value'),
-    Input('student-count-slider', 'value'),
-    prevent_initial_call=True
-)
-def update_dynamic_chart(chart_type, selected_features, search_student, student_count):
-    if not selected_features or len(selected_features) < 2:
-        return go.Figure().add_annotation(
-            text="Please select at least 2 features",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16, color="gray")
-        )
-
-    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
-    features = selected_features[:5]  # Limit to 5 for performance
-
-    if chart_type == 'parallel-coords':
-        fig = px.parallel_coordinates(
-            sample_df,
-            dimensions=features,
-            color='Exam_Score (%)',
-            color_continuous_scale='viridis'
-        )
-        fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=40, r=40, t=40, b=40)
-        )
-        return fig
-
-    elif chart_type == 'radar':
-        if search_student and search_student.strip():
-            matched = sample_df[sample_df['Student_ID'].astype(str).str.contains(search_student.strip(), case=False)]
-            student_row = matched.iloc[0] if not matched.empty else sample_df.iloc[0]
-        else:
-            student_row = sample_df.iloc[0]
-
-        top_performers = sample_df[sample_df['Exam_Score (%)'] >= sample_df['Exam_Score (%)'].quantile(0.8)]
-        top_avg = top_performers[features].mean()
-
-        # Normalize data
-        feature_min = [sample_df[feat].min() for feat in features]
-        feature_max = [sample_df[feat].max() for feat in features]
-        
-        def normalize(values, min_vals, max_vals):
-            return [(v - min_v) / (max_v - min_v) if max_v > min_v else 0
-                    for v, min_v, max_v in zip(values, min_vals, max_vals)]
-
-        student_data = [student_row[feat] for feat in features]
-        student_norm = normalize(student_data, feature_min, feature_max)
-        top_avg_norm = normalize(top_avg.values, feature_min, feature_max)
-
-        theta_labels = [label.replace('_', ' ').replace(' (%)', '') for label in features]
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatterpolar(
-            r=student_norm + [student_norm[0]],
-            theta=theta_labels + [theta_labels[0]],
-            fill='toself',
-            name='Selected Student',
-            line_color='#3498db'
-        ))
-        fig.add_trace(go.Scatterpolar(
-            r=top_avg_norm + [top_avg_norm[0]],
-            theta=theta_labels + [theta_labels[0]],
-            fill='toself',
-            name='Top Performers Avg',
-            line_color='#e74c3c',
-            opacity=0.7
-        ))
-        fig.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-            showlegend=True,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=40, r=40, t=40, b=40)
-        )
-        return fig
-
-    elif chart_type == 'box-plot':
-        df_long = sample_df.melt(
-            id_vars=["Student_ID"], 
-            value_vars=features, 
-            var_name="Feature", 
-            value_name="Value"
-        )
-        fig = px.box(
-            df_long, 
-            x="Feature", 
-            y="Value", 
-            color="Feature",
-            color_discrete_sequence=px.colors.qualitative.Set3
-        )
-        fig.update_layout(
-            showlegend=False,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=40, r=40, t=40, b=40)
-        )
-        fig.update_xaxes(tickangle=45)
-        return fig
-
-    return go.Figure()
 
 if __name__ == '__main__':
     app.run(debug=True)
