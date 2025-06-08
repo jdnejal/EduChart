@@ -124,10 +124,10 @@ def create_top_bar():
         ], style={'display': 'flex', 'alignItems': 'center'})
     ], style=top_bar_style)
 
-# Small visualization tiles
-def create_scatter_tile():
+# Updated tile components
+def create_scatter_tsne_tile():
     return html.Div([
-        html.H4("📈 Performance Scatter", style={
+        html.H4("📈 Performance Analysis", style={
             'margin': '0 0 10px 0',
             'color': '#2c3e50',
             'fontSize': '16px',
@@ -135,107 +135,65 @@ def create_scatter_tile():
         }),
         
         html.Div([
+            dcc.Dropdown(
+                id='plot-type-dropdown',
+                options=[
+                    {'label': 'Scatter Plot', 'value': 'scatter'},
+                    {'label': 't-SNE Plot', 'value': 'tsne'}
+                ],
+                value='scatter',
+                clearable=False,
+                style={'width': '48%', 'fontSize': '11px', 'display': 'inline-block', 'marginRight': '4%'}
+            ),
             dcc.Dropdown(
                 id='x-axis-dropdown',
                 options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
                 value='Study_Hours_per_Week',
                 clearable=False,
-                style={'width': '48%', 'fontSize': '11px', 'display': 'inline-block', 'marginRight': '4%'}
-            ),
-            dcc.Dropdown(
-                id='y-axis-dropdown',
-                options=[{'label': f.replace('_', ' ').replace(' (%)', ''), 'value': f} for f in selectable_features],
-                value='Exam_Score (%)',
-                clearable=False,
                 style={'width': '48%', 'fontSize': '11px', 'display': 'inline-block'}
             )
         ], style={'marginBottom': '8px'}),
         
-        dcc.Graph(id='scatter-plot', style={'height': '240px'})
+        dcc.Graph(id='scatter-tsne-plot', style={'height': '240px'})
     ], style=small_tile_style)
 
-def create_dimensionality_tile():
+def create_performance_donut_tile():
     return html.Div([
-        html.H4("🎯 Dimensionality Reduction", style={
+        html.H4("🎯 Performance Distribution", style={
             'margin': '0 0 10px 0',
             'color': '#2c3e50',
             'fontSize': '16px',
             'fontWeight': '600'
         }),
         
-        html.Div([
-            dcc.Dropdown(
-                id='dim-reduction-method',
-                options=[
-                    {'label': 'PCA', 'value': 'pca'},
-                    {'label': 't-SNE', 'value': 'tsne'}
-                ],
-                value='pca',
-                clearable=False,
-                style={'width': '100%', 'fontSize': '11px'}
-            )
-        ], style={'marginBottom': '8px'}),
-        
-        dcc.Graph(id='dim-reduction-plot', style={'height': '240px'})
+        dcc.Graph(id='performance-donut-plot', style={'height': '275px'})
     ], style=small_tile_style)
 
 def create_parallel_tile():
     return html.Div([
-        html.H4("📊 Parallel Coordinates", style={
+        html.H4("📊 Student Profiles", style={
             'margin': '0 0 10px 0',
             'color': '#2c3e50',
             'fontSize': '16px',
             'fontWeight': '600'
         }),
         
-        html.Div([
-            dcc.Dropdown(
-                id='parallel-features',
-                options=[{'label': col.replace('_', ' '), 'value': col} 
-                        for col in df.columns if col not in ['student_id', 'Student_ID']],
-                value=[
-                    "Assignment_Completion_Rate (%)",
-                    "Attendance_Rate (%)",
-                    "Study_Hours_per_Week",
-                    "Exam_Score (%)"
-                ],
-                multi=True,
-                style={'fontSize': '11px'}
-            )
-        ], style={'marginBottom': '8px'}),
-        
-        dcc.Graph(id='parallel-plot', style={'height': '240px'})
+        dcc.Graph(id='parallel-plot', style={'height': '275px'})
     ], style=small_tile_style)
 
-def create_radar_tile():
+def create_categorical_bar_tile():
     return html.Div([
-        html.H4("🎯 Student Radar", style={
+        html.H4("📋 Categorical Analysis", style={
             'margin': '0 0 10px 0',
             'color': '#2c3e50',
             'fontSize': '16px',
             'fontWeight': '600'
         }),
         
-        html.Div([
-            dcc.Dropdown(
-                id='radar-features',
-                options=[{'label': col.replace('_', ' '), 'value': col} 
-                        for col in df.columns if col not in ['student_id', 'Student_ID', 'Exam_Score (%)']],
-                value=[
-                    "Assignment_Completion_Rate (%)",
-                    "Attendance_Rate (%)",
-                    "Study_Hours_per_Week",
-                    "Online_Courses_Completed"
-                ],
-                multi=True,
-                style={'fontSize': '11px'}
-            )
-        ], style={'marginBottom': '8px'}),
-        
-        dcc.Graph(id='radar-plot', style={'height': '240px'})
+        dcc.Graph(id='categorical-bar-plot', style={'height': '275px'})
     ], style=small_tile_style)
 
-# Prediction tile
+# Prediction tile (unchanged)
 def create_prediction_tile():
     return html.Div([
         html.H3("🎯 Score Prediction", style={
@@ -281,7 +239,7 @@ def create_prediction_tile():
         ])
     ], style=prediction_tile_style)
 
-# Chatbot tile
+# Chatbot tile (unchanged)
 def create_chatbot_tile():
     return html.Div([
         html.H4("💬 AI Assistant", style={
@@ -323,20 +281,24 @@ def create_chatbot_tile():
         ])
     ], style=chatbot_tile_style)
 
+# Hidden div to store selected performance group
+hidden_div = html.Div(id='selected-performance-group', style={'display': 'none'})
+
 # Main layout
 app.layout = html.Div([
     create_top_bar(),
+    hidden_div,
     
     html.Div([
-        # Left section - 4 small visualization tiles in 2x2 grid
+        # Left section - 4 visualization tiles in 2x2 grid
         html.Div([
             html.Div([
-                html.Div([create_scatter_tile()], style={'width': '50%', 'display': 'inline-block'}),
-                html.Div([create_dimensionality_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
+                html.Div([create_scatter_tsne_tile()], style={'width': '50%', 'display': 'inline-block'}),
+                html.Div([create_performance_donut_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
             ]),
             html.Div([
                 html.Div([create_parallel_tile()], style={'width': '50%', 'display': 'inline-block'}),
-                html.Div([create_radar_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
+                html.Div([create_categorical_bar_tile()], style={'width': '50%', 'display': 'inline-block', 'float': 'right'})
             ])
         ], style={'width': '75%', 'display': 'inline-block', 'verticalAlign': 'top'}),
         
@@ -348,116 +310,188 @@ app.layout = html.Div([
     ], style={'padding': '5px 5px', 'height': 'calc(100vh - 60px)', 'overflow': 'hidden'})
 ], style=main_container_style)
 
+# Helper function to categorize performance
+def categorize_performance(score):
+    if score >= 80:
+        return 'High (≥80%)'
+    elif score >= 50:
+        return 'Medium (50-79%)'
+    else:
+        return 'Low (<50%)'
+
 # Callbacks
 @app.callback(
-    Output('scatter-plot', 'figure'),
-    Input('search-input', 'value'),
-    Input('x-axis-dropdown', 'value'),
-    Input('y-axis-dropdown', 'value'),
-    Input('student-count-slider', 'value')
+    Output('selected-performance-group', 'children'),
+    Input('performance-donut-plot', 'clickData')
 )
-def update_scatter_plot(search_value, x_axis, y_axis, student_count):
-    filtered_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
+def update_selected_group(clickData):
+    if clickData is None:
+        return 'All'
+    return clickData['points'][0]['label']
 
-    fig = px.scatter(
-        filtered_df,
-        x=x_axis,
-        y=y_axis,
-        size="Attendance_Rate (%)",
-        color="Exam_Score (%)",
-        size_max=8,
-        hover_data=["Student_ID"],
-        color_continuous_scale="viridis"
-    )
+@app.callback(
+    Output('scatter-tsne-plot', 'figure'),
+    Input('plot-type-dropdown', 'value'),
+    Input('x-axis-dropdown', 'value'),
+    Input('search-input', 'value'),
+    Input('student-count-slider', 'value'),
+    Input('selected-performance-group', 'children')
+)
+def update_scatter_tsne_plot(plot_type, x_axis, search_value, student_count, selected_group):
+    filtered_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
+    filtered_df['Performance_Group'] = filtered_df['Exam_Score (%)'].apply(categorize_performance)
     
+    if plot_type == 'scatter':
+        fig = px.scatter(
+            filtered_df,
+            x=x_axis,
+            y='Exam_Score (%)',
+            color='Performance_Group',
+            size="Attendance_Rate (%)",
+            size_max=8,
+            hover_data=["Student_ID"],
+            color_discrete_map={
+                'High (≥80%)': '#2ecc71',
+                'Medium (50-79%)': '#f39c12', 
+                'Low (<50%)': '#e74c3c'
+            }
+        )
+        
+        # Highlight selected group
+        if selected_group != 'All' and selected_group in ['High (≥80%)', 'Medium (50-79%)', 'Low (<50%)']:
+            # Fade non-selected groups
+            for trace in fig.data:
+                if trace.name != selected_group:
+                    trace.marker.opacity = 0.3
+                else:
+                    trace.marker.opacity = 1.0
+                    trace.marker.line = dict(width=2, color='black')
+        
+    else:  # t-SNE
+        numeric_features = [
+            "Assignment_Completion_Rate (%)",
+            "Attendance_Rate (%)",
+            "Time_Spent_on_Social_Media (hours/week)",
+            "Study_Hours_per_Week",
+            "Online_Courses_Completed"
+        ]
+        
+        X = filtered_df[numeric_features].fillna(0)
+        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(X)-1))
+        X_reduced = reducer.fit_transform(X)
+        
+        fig = px.scatter(
+            x=X_reduced[:, 0],
+            y=X_reduced[:, 1],
+            color=filtered_df['Performance_Group'],
+            color_discrete_map={
+                'High (≥80%)': '#2ecc71',
+                'Medium (50-79%)': '#f39c12', 
+                'Low (<50%)': '#e74c3c'
+            },
+            hover_data={'Student_ID': filtered_df['Student_ID']}
+        )
+        
+        # Highlight selected group
+        if selected_group != 'All' and selected_group in ['High (≥80%)', 'Medium (50-79%)', 'Low (<50%)']:
+            for trace in fig.data:
+                if trace.name != selected_group:
+                    trace.marker.opacity = 0.3
+                else:
+                    trace.marker.opacity = 1.0
+                    trace.marker.line = dict(width=2, color='black')
+    
+    # Highlight searched student
     if search_value and search_value.strip():
         matched = filtered_df[filtered_df['Student_ID'].astype(str).str.contains(search_value.strip(), case=False)]
         if not matched.empty:
             student = matched.iloc[0]
-            fig.add_trace(go.Scatter(
-                x=[student[x_axis]],
-                y=[student[y_axis]],
-                mode='markers',
-                marker=dict(color='red', size=12, symbol='star'),
-                name=f"ID: {student['Student_ID']}",
-                showlegend=False
-            ))
+            if plot_type == 'scatter':
+                fig.add_trace(go.Scatter(
+                    x=[student[x_axis]],
+                    y=[student['Exam_Score (%)']],
+                    mode='markers',
+                    marker=dict(color='purple', size=15, symbol='star'),
+                    name=f"ID: {student['Student_ID']}",
+                    showlegend=False
+                ))
     
     fig.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(size=10),
         margin=dict(l=30, r=30, t=20, b=30),
-        showlegend=False
+        legend=dict(font=dict(size=8), orientation="h", y=-0.1)
     )
 
     return fig
 
 @app.callback(
-    Output('dim-reduction-plot', 'figure'),
-    Input('dim-reduction-method', 'value'),
+    Output('performance-donut-plot', 'figure'),
     Input('student-count-slider', 'value')
 )
-def update_dim_reduction_plot(method, student_count):
+def update_performance_donut_plot(student_count):
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
+    sample_df['Performance_Group'] = sample_df['Exam_Score (%)'].apply(categorize_performance)
     
-    # Select numeric features for dimensionality reduction
-    numeric_features = [
-        "Assignment_Completion_Rate (%)",
-        "Attendance_Rate (%)",
-        "Time_Spent_on_Social_Media (hours/week)",
-        "Study_Hours_per_Week",
-        "Online_Courses_Completed"
-    ]
+    counts = sample_df['Performance_Group'].value_counts()
     
-    X = sample_df[numeric_features].fillna(0)
-    
-    if method == 'pca':
-        reducer = PCA(n_components=2, random_state=42)
-        X_reduced = reducer.fit_transform(X)
-        title = f"PCA (Explained Variance: {sum(reducer.explained_variance_ratio_):.2%})"
-    else:  # tsne
-        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(X)-1))
-        X_reduced = reducer.fit_transform(X)
-        title = "t-SNE Visualization"
-    
-    fig = px.scatter(
-        x=X_reduced[:, 0],
-        y=X_reduced[:, 1],
-        color=sample_df['Exam_Score (%)'],
-        color_continuous_scale="viridis",
-        title=title
-    )
+    fig = go.Figure(data=[go.Pie(
+        labels=counts.index,
+        values=counts.values,
+        hole=0.4,
+        marker=dict(
+            colors=['#2ecc71', '#f39c12', '#e74c3c'],
+            line=dict(color='white', width=2)
+        ),
+        textinfo='label+percent+value',
+        textposition='auto',
+        hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+    )])
     
     fig.update_layout(
+        showlegend=False,
+        margin=dict(t=10, b=10, l=10, r=10),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(size=10),
-        margin=dict(l=30, r=30, t=30, b=30),
-        showlegend=False,
-        title_font_size=12
+        font=dict(size=10)
     )
-    
+
     return fig
 
 @app.callback(
     Output('parallel-plot', 'figure'),
-    Input('parallel-features', 'value'),
-    Input('student-count-slider', 'value')
+    Input('student-count-slider', 'value'),
+    Input('selected-performance-group', 'children')
 )
-def update_parallel_plot(selected_features, student_count):
-    if not selected_features or len(selected_features) < 3:
+def update_parallel_plot(student_count, selected_group):
+    sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
+    sample_df['Performance_Group'] = sample_df['Exam_Score (%)'].apply(categorize_performance)
+    
+    # Filter by selected group
+    if selected_group != 'All' and selected_group in ['High (≥80%)', 'Medium (50-79%)', 'Low (<50%)']:
+        filtered_df = sample_df[sample_df['Performance_Group'] == selected_group]
+    else:
+        filtered_df = sample_df
+    
+    # Fixed features for parallel coordinates
+    fixed_features = [
+        "Assignment_Completion_Rate (%)",
+        "Attendance_Rate (%)",
+        "Study_Hours_per_Week",
+        "Exam_Score (%)"
+    ]
+    
+    if len(filtered_df) == 0:
         return go.Figure().add_annotation(
-            text="Select at least 3 features",
+            text="No data for selected group",
             xref="paper", yref="paper", x=0.5, y=0.5,
             showarrow=False, font=dict(size=12, color="gray")
         )
     
-    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
-    
     fig = px.parallel_coordinates(
-        sample_df,
-        dimensions=selected_features[:5],
+        filtered_df,
+        dimensions=fixed_features,
         color='Exam_Score (%)',
         color_continuous_scale='viridis'
     )
@@ -472,72 +506,63 @@ def update_parallel_plot(selected_features, student_count):
     return fig
 
 @app.callback(
-    Output('radar-plot', 'figure'),
-    Input('radar-features', 'value'),
-    Input('search-input', 'value'),
-    Input('student-count-slider', 'value')
+    Output('categorical-bar-plot', 'figure'),
+    Input('student-count-slider', 'value'),
+    Input('selected-performance-group', 'children')
 )
-def update_radar_plot(selected_features, search_student, student_count):
-    if not selected_features or len(selected_features) < 3:
+def update_categorical_bar_plot(student_count, selected_group):
+    sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
+    sample_df['Performance_Group'] = sample_df['Exam_Score (%)'].apply(categorize_performance)
+    
+    # Filter by selected group
+    if selected_group != 'All' and selected_group in ['High (≥80%)', 'Medium (50-79%)', 'Low (<50%)']:
+        filtered_df = sample_df[sample_df['Performance_Group'] == selected_group]
+        title_suffix = f" - {selected_group}"
+    else:
+        filtered_df = sample_df
+        title_suffix = " - All Students"
+    
+    categorical_features = [
+        'Preferred_Learning_Style',
+        'Participation_in_Discussions', 
+        'Use_of_Educational_Tech'
+    ]
+    
+    # Check which columns exist in the dataset
+    available_features = [col for col in categorical_features if col in filtered_df.columns]
+    
+    if not available_features:
         return go.Figure().add_annotation(
-            text="Select at least 3 features",
+            text="Categorical columns not found",
             xref="paper", yref="paper", x=0.5, y=0.5,
             showarrow=False, font=dict(size=12, color="gray")
         )
     
-    sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
-    
-    # Get student data
-    if search_student and search_student.strip():
-        matched = sample_df[sample_df['Student_ID'].astype(str).str.contains(search_student.strip(), case=False)]
-        student_row = matched.iloc[0] if not matched.empty else sample_df.iloc[0]
-    else:
-        student_row = sample_df.iloc[0]
-    
-    # Get top performers average
-    top_performers = sample_df[sample_df['Exam_Score (%)'] >= sample_df['Exam_Score (%)'].quantile(0.8)]
-    top_avg = top_performers[selected_features].mean()
-    
-    # Normalize data
-    features = selected_features[:5]
-    feature_min = [sample_df[feat].min() for feat in features]
-    feature_max = [sample_df[feat].max() for feat in features]
-    
-    def normalize(values, min_vals, max_vals):
-        return [(v - min_v) / (max_v - min_v) if max_v > min_v else 0
-                for v, min_v, max_v in zip(values, min_vals, max_vals)]
-
-    student_data = [student_row[feat] for feat in features]
-    student_norm = normalize(student_data, feature_min, feature_max)
-    top_avg_norm = normalize(top_avg.values, feature_min, feature_max)
-
-    theta_labels = [label.replace('_', ' ').replace(' (%)', '') for label in features]
-    
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=student_norm + [student_norm[0]],
-        theta=theta_labels + [theta_labels[0]],
-        fill='toself',
-        name='Student',
-        line_color='#3498db'
-    ))
-    fig.add_trace(go.Scatterpolar(
-        r=top_avg_norm + [top_avg_norm[0]],
-        theta=theta_labels + [theta_labels[0]],
-        fill='toself',
-        name='Top Avg',
-        line_color='#e74c3c',
-        opacity=0.6
-    ))
+    colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+    
+    for i, feature in enumerate(available_features):
+        if feature in filtered_df.columns:
+            counts = filtered_df[feature].value_counts()
+            fig.add_trace(go.Bar(
+                name=feature.replace('_', ' '),
+                x=counts.index,
+                y=counts.values,
+                marker_color=colors[i % len(colors)],
+                opacity=0.8,
+                visible=True if i == 0 else 'legendonly'  # Show first feature by default
+            ))
     
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-        showlegend=True,
+        title=f"Categorical Features{title_suffix}",
+        title_font_size=12,
+        xaxis_title="Categories",
+        yaxis_title="Count",
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(size=9),
-        margin=dict(l=20, r=20, t=20, b=20),
-        legend=dict(font=dict(size=8))
+        margin=dict(l=30, r=30, t=40, b=30),
+        legend=dict(font=dict(size=8), orientation="h", y=-0.2)
     )
     
     return fig
