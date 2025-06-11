@@ -377,7 +377,7 @@ def update_scatter_tsne_plot(plot_type, x_axis, search_value, student_count, sel
         ]
         
         X = filtered_df[numeric_features].fillna(0)
-        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(X)-1))
+        reducer = TSNE(n_components=2, random_state=42, perplexity=min(30, len(X)-1), learning_rate=200, n_iter=1000)
         X_reduced = reducer.fit_transform(X)
         
         fig = px.scatter(
@@ -441,7 +441,7 @@ def update_performance_donut_plot(student_count):
         values=counts.values,
         hole=0.4,
         marker=dict(
-            colors=['#2ecc71', '#f39c12', '#e74c3c'],
+            colors=['#f39c12', '#2ecc71', '#e74c3c'],
             line=dict(color='white', width=2)
         ),
         textinfo='label+percent+value',
