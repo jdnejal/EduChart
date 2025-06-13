@@ -19,7 +19,6 @@ def create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_h
         "attendance_percentage": attendance_percentage
     }])
 
-    # prediction = min(prediction_model.predict(input_data)[0], 100)
     prediction = min(prediction_model.predict(input_data.values)[0], 100)
     
     # Use dynamic color based on prediction bucket
