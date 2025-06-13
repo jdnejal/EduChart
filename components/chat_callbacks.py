@@ -145,7 +145,6 @@ def register_chat_callbacks(app):
         ])
 
 
-# We don't need the manual response generation functions anymore since we're using the AI agent
 
 
 def format_chat_messages(chat_history):
