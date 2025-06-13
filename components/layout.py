@@ -43,6 +43,114 @@ main_container_style = {
     'overflow': 'hidden'
 }
 
+# AI Chat specific styles Added new
+chat_button_style = {
+    'position': 'fixed',
+    'bottom': '20px',
+    'right': '20px',
+    'width': '50px',
+    'height': '50px',
+    'backgroundColor': '#3498db',
+    'color': 'white',
+    'border': 'none',
+    'borderRadius': '50%',
+    'cursor': 'pointer',
+    'fontSize': '24px',
+    'boxShadow': '0 4px 12px rgba(0,0,0,0.3)',
+    'zIndex': '1001',
+    'display': 'flex',
+    'alignItems': 'center',
+    'justifyContent': 'center',
+    'transition': 'all 0.3s ease'
+}
+
+chat_container_style = {
+    'position': 'fixed',
+    'bottom': '80px',
+    'right': '20px',
+    'width': '350px',
+    'height': '500px',
+    'backgroundColor': '#2c3e50',
+    'border': '1px solid #34495e',
+    'borderRadius': '10px',
+    'boxShadow': '0 4px 20px rgba(0,0,0,0.3)',
+    'zIndex': '1002',
+    'display': 'none',  # Initially hidden
+    'flexDirection': 'column'
+}
+
+chat_header_style = {
+    'padding': '15px',
+    'backgroundColor': '#34495e',
+    'color': 'white',
+    'borderRadius': '10px 10px 0 0',
+    'display': 'flex',
+    'justifyContent': 'space-between',
+    'alignItems': 'center',
+    'borderBottom': '1px solid #4a5f7a'
+}
+
+chat_messages_style = {
+    'flex': '1',
+    'padding': '10px',
+    'overflowY': 'auto',
+    'backgroundColor': '#ecf0f1',
+    'display': 'flex',
+    'flexDirection': 'column',
+    'gap': '10px'
+}
+
+chat_input_container_style = {
+    'padding': '10px',
+    'backgroundColor': '#34495e',
+    'borderRadius': '0 0 10px 10px',
+    'display': 'flex',
+    'gap': '5px'
+}
+
+chat_input_style = {
+    'flex': '1',
+    'padding': '8px 12px',
+    'border': '1px solid #4a5f7a',
+    'borderRadius': '5px',
+    'backgroundColor': '#2c3e50',
+    'color': 'white',
+    'fontSize': '14px'
+}
+
+chat_send_button_style = {
+    'padding': '8px 12px',
+    'backgroundColor': '#3498db',
+    'color': 'white',
+    'border': 'none',
+    'borderRadius': '5px',
+    'cursor': 'pointer',
+    'fontSize': '14px'
+}
+
+message_style_ai = {
+    'padding': '8px 12px',
+    'backgroundColor': '#3498db',
+    'color': 'white',
+    'borderRadius': '10px',
+    'marginBottom': '5px',
+    'fontSize': '12px',
+    'lineHeight': '1.4',
+    'whiteSpace': 'pre-wrap'
+}
+
+message_style_user = {
+    'padding': '8px 12px',
+    'backgroundColor': '#95a5a6',
+    'color': 'white',
+    'borderRadius': '10px',
+    'marginBottom': '5px',
+    'fontSize': '12px',
+    'lineHeight': '1.4',
+    'alignSelf': 'flex-end',
+    'maxWidth': '80%'
+}
+
 def create_top_bar():
     """Create the top navigation bar"""
     return html.Div([
@@ -138,6 +246,72 @@ def create_top_bar():
             ], style={'position': 'relative'})
         ], style={'display': 'flex', 'alignItems': 'center'})
     ], style=top_bar_style)
+
+#Added new
+def create_ai_chat_interface():
+    """Create the AI chat interface"""
+    return html.Div([
+        # Chat toggle button
+        html.Button("🤖", id='chat-toggle-button', n_clicks=0, title="AI Assistant", 
+                   style=chat_button_style),
+        
+        # Chat container
+        html.Div([
+            # Chat header
+            html.Div([
+                html.Span("🤖 AI Data Assistant", style={'fontSize': '16px', 'fontWeight': '600'}),
+                html.Button("×", id='chat-close-button', n_clicks=0, style={
+                    'background': 'transparent',
+                    'border': 'none',
+                    'color': 'white',
+                    'fontSize': '20px',
+                    'cursor': 'pointer',
+                    'padding': '0',
+                    'width': '20px',
+                    'height': '20px'
+                })
+            ], style=chat_header_style),
+            
+            # Chat messages area
+            html.Div(id='chat-messages', children=[
+                html.Div([
+                    "👋 Hi! I'm your AI assistant. I can help you analyze the student performance data. Ask me questions like:",
+                    html.Br(),
+                    html.Br(),
+                    "• 'Show me students with high performance'",
+                    html.Br(),
+                    "• 'What factors affect student grades?'",
+                    html.Br(),
+                    "• 'Find interesting patterns in the data'"
+                ], style=message_style_ai)
+            ], style=chat_messages_style),
+            
+            # Chat input area
+            html.Div([
+                dcc.Input(
+                    id='chat-input',
+                    placeholder='Ask me anything about the data...',
+                    type='text',
+                    style=chat_input_style,
+                    debounce=False
+                ),
+                html.Button("📤", id='chat-send-button', n_clicks=0, 
+                           style=chat_send_button_style)
+            ], style=chat_input_container_style)
+        ], id='chat-container', style=chat_container_style),
+        
+        # Loading indicator for AI responses
+        dcc.Loading(
+            id='chat-loading',
+            type='dot',
+            children=[html.Div(id='chat-loading-output')],
+            style={'position': 'fixed', 'bottom': '550px', 'right': '220px', 'zIndex': '1003'}
+        ),
+        
+        # Store for chat history
+        dcc.Store(id='chat-history-store', data=[]),
+        dcc.Store(id='chat-visible-store', data=False)
+    ])
 
 def create_scatter_tsne_tile():
     """Create scatter/t-SNE plot tile"""
@@ -326,5 +500,8 @@ def create_layout():
             html.Div([
                 create_prediction_tile(),
             ], style={'width': '25%', 'display': 'inline-block', 'verticalAlign': 'top'})
-        ], style={'padding': '5px 5px', 'height': 'calc(100vh - 60px)', 'overflow': 'hidden'})
+        ], style={'padding': '5px 5px', 'height': 'calc(100vh - 60px)', 'overflow': 'hidden'}),
+        
+        # AI Chat Interface added new
+        create_ai_chat_interface()
     ], style=main_container_style)

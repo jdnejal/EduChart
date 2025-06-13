@@ -2,6 +2,8 @@ from dash import Dash
 from components.layout import create_layout
 from components.callbacks import register_callbacks
 from utils.data_processing import load_and_prepare_data
+from components.chat_callbacks import register_chat_callbacks  # New chat callbacks
+
 
 # Initialize the app
 app = Dash(__name__, suppress_callback_exceptions=True)
@@ -18,6 +20,7 @@ app.layout = create_layout()
 
 # Register all callbacks
 register_callbacks(app)
+register_chat_callbacks(app) 
 
 if __name__ == '__main__':
     app.run(debug=True)
