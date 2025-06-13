@@ -307,6 +307,7 @@ def create_layout():
         dcc.Store(id='selected-students-store', data=[]),
         dcc.Store(id='selected-performance-group-store', data='All'),
         dcc.Store(id='current-sample-size-store', data=800),
+        dcc.Store(id='bar-chart-visibility-store', data=None),
         
         html.Div([
             # Left section - 4 visualization tiles in 2x2 grid

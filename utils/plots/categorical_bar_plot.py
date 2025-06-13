@@ -3,8 +3,12 @@ import plotly.graph_objects as go
 from utils.data_processing import get_color_schemes
 
 
-def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None):
-    """Create categorical bar plot with toggleable features"""
+import plotly.graph_objects as go
+from utils.data_processing import get_color_schemes
+
+
+def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None, current_visibility=None):
+    """Create categorical bar plot with toggleable features and preserved visibility"""
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
     sample_df['Performance_Group'] = sample_df['exam_score'].apply(categorize_performance)
     
@@ -50,25 +54,29 @@ def create_categorical_bar_plot(df, student_count, selected_group, color_scheme,
 
     # Define color maps
     color_schemes = get_color_schemes()
-
     colors = color_schemes.get(color_scheme, color_schemes['default'])
+    
+    # Create a visibility map from current_visibility if provided
+    visibility_map = {}
+    if current_visibility:
+        for i, vis in enumerate(current_visibility):
+            if i < len(available_features):
+                visibility_map[available_features[i]] = vis
     
     for i, feature in enumerate(available_features):
         if feature in filtered_df.columns:
             counts = filtered_df[feature].value_counts()
+            
             fig.add_trace(go.Bar(
                 name=feature.replace('_', ' ').title(),
                 x=counts.index,
                 y=counts.values,
                 marker_color=colors[i % len(colors)],
                 opacity=0.8,
-                visible=True if i == 0 else 'legendonly'  # Show first feature by default
+                visible=True  # Show all categories by default instead of 'legendonly'
             ))
     
     fig.update_layout(
-        title=f"Categorical Features{title_suffix}",
-        title_font_size=12,
-        xaxis_title="Categories",
         yaxis_title="Count",
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
