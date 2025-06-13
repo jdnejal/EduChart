@@ -11,7 +11,6 @@ def register_chat_callbacks(app):
     
     # Access the globally stored data
     df = app.df
-    prediction_model = app.prediction_model
     
     # Initialize the AI agent
     ai_agent = initialize_ai_agent("data/student_performance_large_dataset.csv")
@@ -143,8 +142,6 @@ def register_chat_callbacks(app):
         return html.Div([
             html.Small(context_text, style={'color': '#666', 'fontSize': '10px'})
         ])
-
-
 
 
 def format_chat_messages(chat_history):
