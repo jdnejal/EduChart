@@ -2,7 +2,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-def create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance):
+def create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None):
     """Create parallel coordinates plot"""
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
     sample_df['Performance_Group'] = sample_df['exam_score'].apply(categorize_performance)
@@ -12,6 +12,16 @@ def create_parallel_plot(df, student_count, selected_group, color_scheme, catego
         filtered_df = sample_df[sample_df['Performance_Group'] == selected_group]
     else:
         filtered_df = sample_df
+    
+    # Filter by selected students if any
+    if selected_students is not None and len(selected_students) > 0:
+        filtered_df = filtered_df[filtered_df['student_id'].isin(selected_students)]
+        if len(filtered_df) == 0:
+            return go.Figure().add_annotation(
+                text="No data for selected students",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=12, color="gray")
+            )
     
     # Updated features for parallel coordinates
     fixed_features = [

@@ -1,7 +1,6 @@
 from dash import Input, Output, State
 from utils.data_processing import categorize_performance
 
-
 import plotly.express as px
 import pandas as pd
 import plotly.graph_objects as go
@@ -47,6 +46,49 @@ def register_callbacks(app):
             return 'All'
         return clickData['points'][0]['label']
 
+    # NEW: Callback to capture selected data from scatter/t-SNE plot
+    @app.callback(
+        Output('selected-students-store', 'data'),
+        Input('scatter-tsne-plot', 'selectedData'),
+        Input('scatter-tsne-plot', 'figure'),  # Reset selection when plot changes
+        State('student-count-slider', 'value'),
+        State('selected-performance-group-store', 'data')
+    )
+    def update_selected_students(selectedData, figure, student_count, selected_group):
+        """Store selected student IDs from scatter/t-SNE plot"""
+        print("=== DEBUG: Selection callback triggered ===")
+        print(f"selectedData: {selectedData}")
+        
+        if selectedData is None:
+            print("No selectedData")
+            return None
+            
+        if selectedData.get('points') is None:
+            print("No points in selectedData")
+            return None
+        
+        print(f"Number of selected points: {len(selectedData['points'])}")
+        
+        # Extract student IDs from selected points
+        selected_student_ids = []
+        for i, point in enumerate(selectedData['points']):
+            print(f"Point {i}: {point}")
+            
+            # Check different possible locations for student_id
+            if 'customdata' in point and point['customdata']:
+                print(f"  customdata: {point['customdata']}")
+                student_id = point['customdata'][0]  # student_id is first in customdata
+                selected_student_ids.append(student_id)
+            elif 'hovertext' in point:
+                print(f"  hovertext: {point['hovertext']}")
+            elif 'text' in point:
+                print(f"  text: {point['text']}")
+            else:
+                print(f"  No student_id found in point")
+        
+        print(f"Selected student IDs: {selected_student_ids}")
+        return selected_student_ids if selected_student_ids else None   
+
     @app.callback(
         Output('x-axis-dropdown', 'style'),
         Output('y-axis-dropdown', 'style'),
@@ -79,31 +121,37 @@ def register_callbacks(app):
     def update_scatter_tsne_plot(plot_type, x_axis, y_axis, search_value, student_count, selected_group, color_scheme):
         return create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, student_count, selected_group, color_scheme, categorize_performance)
 
+    # UPDATED: Performance donut plot with selection filtering
     @app.callback(
         Output('performance-donut-plot', 'figure'),
         Input('student-count-slider', 'value'),
-        Input('color-scheme-dropdown', 'value')
+        Input('color-scheme-dropdown', 'value'),
+        Input('selected-students-store', 'data')  # NEW: Add selection input
     )
-    def update_performance_donut_plot(student_count, color_scheme):
-        return create_performance_donut_plot(df, student_count, color_scheme, categorize_performance)
+    def update_performance_donut_plot(student_count, color_scheme, selected_students):
+        return create_performance_donut_plot(df, student_count, color_scheme, categorize_performance, selected_students)
 
+    # UPDATED: Parallel plot with selection filtering
     @app.callback(
         Output('parallel-plot', 'figure'),
         Input('student-count-slider', 'value'),
         Input('selected-performance-group-store', 'data'),
-        Input('color-scheme-dropdown', 'value')
+        Input('color-scheme-dropdown', 'value'),
+        Input('selected-students-store', 'data')  # NEW: Add selection input
     )
-    def update_parallel_plot(student_count, selected_group, color_scheme):
-        return create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance)
+    def update_parallel_plot(student_count, selected_group, color_scheme, selected_students):
+        return create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
+    # UPDATED: Categorical bar plot with selection filtering
     @app.callback(
         Output('categorical-bar-plot', 'figure'),
         Input('student-count-slider', 'value'),
         Input('selected-performance-group-store', 'data'),
-        Input('color-scheme-dropdown', 'value')
+        Input('color-scheme-dropdown', 'value'),
+        Input('selected-students-store', 'data')  # NEW: Add selection input
     )
-    def update_categorical_bar_plot(student_count, selected_group, color_scheme):
-       return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance)
+    def update_categorical_bar_plot(student_count, selected_group, color_scheme, selected_students):
+       return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
     # Updated callback to include all 7 features
     @app.callback(

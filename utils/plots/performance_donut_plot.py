@@ -3,10 +3,20 @@ import plotly.graph_objects as go
 from utils.data_processing import get_color_schemes
 
 
-def create_performance_donut_plot(df, student_count, color_scheme, categorize_performance):
+def create_performance_donut_plot(df, student_count, color_scheme, categorize_performance, selected_students=None):
     """Create donut chart showing performance distribution"""
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42)
     sample_df['Performance_Group'] = sample_df['exam_score'].apply(categorize_performance)
+    
+    # Filter by selected students if any
+    if selected_students is not None and len(selected_students) > 0:
+        sample_df = sample_df[sample_df['student_id'].isin(selected_students)]
+        if len(sample_df) == 0:
+            return go.Figure().add_annotation(
+                text="No data for selected students",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=12, color="gray")
+            )
     
     counts = sample_df['Performance_Group'].value_counts()
     labels = counts.index.tolist()

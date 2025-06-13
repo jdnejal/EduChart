@@ -27,7 +27,7 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
         )
     
     if plot_type == 'scatter':
-        # Create scatter plot
+        # FIXED: Create scatter plot with proper custom_data
         fig = px.scatter(
             display_df,
             x=x_axis,
@@ -35,8 +35,20 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
             color='exam_score',
             size="attendance_percentage",
             size_max=8,
-            hover_data=["student_id"],
+            # IMPORTANT: Use hover_data instead of custom_data for px.scatter
+            hover_data={"student_id": True},  # This will include student_id in hover and selection
             color_continuous_scale=color_scheme,
+        )
+        
+        # Alternative approach: manually set customdata after creation
+        fig.update_traces(
+            customdata=display_df[['student_id']].values,
+            hovertemplate="<b>Student ID: %{customdata[0]}</b><br>" +
+                         f"{x_axis}: %{{x}}<br>" +
+                         f"{y_axis}: %{{y}}<br>" +
+                         "Exam Score: %{marker.color}<br>" +
+                         "Attendance: %{marker.size}<br>" +
+                         "<extra></extra>"
         )
         
         # Highlight searched student
@@ -46,11 +58,12 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
                 student = matched.iloc[0]
                 fig.add_trace(go.Scatter(
                     x=[student[x_axis]],
-                    y=[student[y_axis]],  # Fixed: use y_axis instead of hardcoded 'exam_score'
+                    y=[student[y_axis]],
                     mode='markers',
                     marker=dict(color='purple', size=15, symbol='star'),
                     name=f"ID: {student['student_id']}",
-                    showlegend=True
+                    showlegend=True,
+                    customdata=[[student['student_id']]]  # Wrap in double brackets
                 ))
     
     else:  # t-SNE
@@ -86,17 +99,32 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
             reducer = TSNE(n_components=2, perplexity=min(30, len(display_df)-1), random_state=42)
             X_reduced = reducer.fit_transform(X)
             
-            # Create t-SNE plot
-            fig = px.scatter(
+            # FIXED: Create t-SNE plot with proper customdata
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
                 x=X_reduced[:, 0],
                 y=X_reduced[:, 1],
-                color=display_df['exam_score'],
-                hover_data={'student_id': display_df['student_id']},  # Fixed: correct key name
-                color_continuous_scale=color_scheme,
-                labels={'x': 't-SNE 1', 'y': 't-SNE 2'}
-            )
+                mode='markers',
+                marker=dict(
+                    color=display_df['exam_score'],
+                    colorscale=color_scheme,
+                    colorbar=dict(title='Exam Score')
+                ),
+                customdata=display_df[['student_id']].values,  # IMPORTANT: Set customdata properly
+                hovertemplate="<b>Student ID: %{customdata[0]}</b><br>" +
+                             "t-SNE 1: %{x}<br>" +
+                             "t-SNE 2: %{y}<br>" +
+                             "Exam Score: %{marker.color}<br>" +
+                             "<extra></extra>",
+                name='Students'
+            ))
             
-            fig.update_coloraxes(colorbar_title='Exam Score')
+            # Update layout for t-SNE
+            fig.update_layout(
+                xaxis_title='t-SNE 1',
+                yaxis_title='t-SNE 2'
+            )
             
             # Highlight searched student in t-SNE
             if search_value and search_value.strip():
@@ -104,7 +132,6 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
                 original_indices = display_df.index
                 
                 for matched_idx in matched_indices:
-                    # Find position in the reduced dataset
                     pos_in_reduced = list(original_indices).index(matched_idx)
                     if pos_in_reduced < len(X_reduced):
                         fig.add_trace(go.Scatter(
@@ -113,11 +140,11 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
                             mode='markers',
                             marker=dict(color='purple', size=15, symbol='star'),
                             name=f"ID: {display_df.loc[matched_idx, 'student_id']}",
-                            showlegend=True
+                            showlegend=True,
+                            customdata=[[display_df.loc[matched_idx, 'student_id']]]
                         ))
         
         except Exception as e:
-            # If t-SNE fails, return error message
             return go.Figure().add_annotation(
                 text=f"t-SNE calculation failed: {str(e)}",
                 xref="paper", yref="paper", x=0.5, y=0.5,
@@ -131,6 +158,8 @@ def create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, studen
         font=dict(size=10),
         margin=dict(l=30, r=30, t=20, b=30),
         legend=dict(font=dict(size=8), orientation="h", y=-0.1),
+        # IMPORTANT: Enable selection tools
+        dragmode='select'  # This enables box selection by default
     )
     
     return fig

@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 from utils.data_processing import get_color_schemes
 
 
-def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance):
+def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None):
     """Create categorical bar plot with toggleable features"""
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
     sample_df['Performance_Group'] = sample_df['exam_score'].apply(categorize_performance)
@@ -15,6 +15,17 @@ def create_categorical_bar_plot(df, student_count, selected_group, color_scheme,
     else:
         filtered_df = sample_df
         title_suffix = " - All Students"
+    
+    # Filter by selected students if any
+    if selected_students is not None and len(selected_students) > 0:
+        filtered_df = filtered_df[filtered_df['student_id'].isin(selected_students)]
+        title_suffix += f" (Selected: {len(selected_students)})"
+        if len(filtered_df) == 0:
+            return go.Figure().add_annotation(
+                text="No data for selected students",
+                xref="paper", yref="paper", x=0.5, y=0.5,
+                showarrow=False, font=dict(size=12, color="gray")
+            )
     
     categorical_features = [
         'gender',
