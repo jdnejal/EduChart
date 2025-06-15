@@ -212,12 +212,7 @@ def create_top_bar():
                 
                 html.Div(id='popup-container', children=[
                     html.Div([
-                        html.Button("Reset Selection", id='reset-button', style={
-                            'marginBottom': '8px',
-                            'width': '100%',
-                            'padding': '5px',
-                            'fontSize': '12px'
-                        }),
+                        
                         dcc.Dropdown(
                             id='color-scheme-dropdown',
                             options=[
@@ -237,7 +232,7 @@ def create_top_bar():
                         'padding': '10px',
                         'boxShadow': '0 2px 6px rgba(0,0,0,0.2)',
                         'position': 'absolute',
-                        'top': '45px',
+                        'top': '10px',
                         'right': '0',
                         'zIndex': '1000',
                         'minWidth': '140px'
