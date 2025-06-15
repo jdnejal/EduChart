@@ -97,7 +97,9 @@ chat_messages_style = {
     'backgroundColor': '#ecf0f1',
     'display': 'flex',
     'flexDirection': 'column',
-    'gap': '10px'
+    'gap': '10px',
+    'maxHeight': '100%',          
+    'overflowWrap': 'break-word'   
 }
 
 chat_input_container_style = {
@@ -136,8 +138,13 @@ message_style_ai = {
     'marginBottom': '5px',
     'fontSize': '12px',
     'lineHeight': '1.4',
-    'whiteSpace': 'pre-wrap'
+    'whiteSpace': 'pre-wrap',
+    'maxWidth': '80%',
+    'wordWrap': 'break-word',
+    'alignSelf': 'flex-start',  # Ensure AI messages align left
+    'overflowWrap': 'break-word',  # Extra safety for long text
 }
+
 
 message_style_user = {
     'padding': '8px 12px',
@@ -148,8 +155,12 @@ message_style_user = {
     'fontSize': '12px',
     'lineHeight': '1.4',
     'alignSelf': 'flex-end',
-    'maxWidth': '80%'
+    'maxWidth': '80%',
+    'whiteSpace': 'pre-wrap',
+    'wordWrap': 'break-word',
+    'overflowWrap': 'break-word'
 }
+
 
 def create_top_bar():
     """Create the top navigation bar"""
