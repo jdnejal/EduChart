@@ -305,7 +305,7 @@ def create_ai_chat_interface():
         
         # Store for chat history
         dcc.Store(id='chat-history-store', data=[]),
-        dcc.Store(id='chat-visible-store', data=False)
+        dcc.Store(id='chat-visible-store', data=False),
     ])
 
 def create_scatter_tsne_tile():
@@ -477,6 +477,7 @@ def create_layout():
         dcc.Store(id='selected-performance-group-store', data='All'),
         dcc.Store(id='current-sample-size-store', data=800),
         dcc.Store(id='bar-chart-visibility-store', data=None),
+        dcc.Store(id='ai-student-selection-store', data=None),
         
         html.Div([
             # Left section - 4 visualization tiles in 2x2 grid

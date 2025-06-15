@@ -7,6 +7,7 @@ from langchain.agents import AgentType
 import json
 import threading
 import time
+import re
 
 class StudentDataAIAgent:
     """Enhanced AI Agent for student data analysis with Dash integration"""
@@ -17,28 +18,24 @@ class StudentDataAIAgent:
         # Load the dataset
         self.df = pd.read_csv(csv_path)
         
-        # Enhanced custom prefix with more context
+        # Simplified custom prefix that works better with LangChain agents
         self.custom_prefix = f"""
         You are an AI assistant specialized in analyzing student performance data. 
+        You have access to a pandas DataFrame with {len(self.df)} student records.
 
-        IMPORTANT RULES:
-        1. Use ONLY the provided DataFrame columns: {', '.join(self.df.columns.tolist())}
-        2. The dataset contains {len(self.df)} student records
-        3. If a question cannot be answered with the available data, respond: "I cannot determine that from the available data."
-        4. Don't use any external knowledge - only analyze the provided DataFrame
-        5. When showing student IDs, limit to 10 examples unless specifically asked for more
-        6. For statistical queries, provide clear numbers and percentages
-        7. Always be helpful and explain your findings in a user-friendly way
+        Available columns: {', '.join(self.df.columns.tolist())}
 
-        DATASET OVERVIEW:
-        - Total students: {len(self.df)}
-        - Key metrics available: academic performance, study habits, lifestyle factors
-        - You can analyze correlations, patterns, and provide insights
-        
-        When users ask about "interesting students" or patterns, focus on:
-        - Outliers in performance vs study habits
-        - Unusual combinations of lifestyle factors
-        - Students with unexpected results given their inputs
+        IMPORTANT INSTRUCTIONS:
+        1. Answer questions using only the provided DataFrame
+        2. When your analysis involves specific students, always include their student_id values
+        3. Format student IDs clearly in your response
+        4. Provide helpful insights and explanations
+        5. If you mention specific students, list their IDs at the end of your response (the ID's range from S1000 to S1999).
+
+        When users ask for specific students or patterns:
+        - Always include the student_id values in your final answer
+        - Explain why these students are relevant
+        - Limit to 10 student IDs unless asked for more
         """
         
         # Initialize the LLM
@@ -49,19 +46,68 @@ class StudentDataAIAgent:
             temperature=0.1  # Lower temperature for more consistent responses
         )
         
-        # Create the agent
+        # Create the agent with parsing error handling
         self.agent = create_pandas_dataframe_agent(
             self.llm,
             self.df,
             verbose=False,
             allow_dangerous_code=True,
             agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            prefix=self.custom_prefix
+            prefix=self.custom_prefix,
+            # handle_parsing_errors=True  # This will handle parsing errors
         )
         
         # Cache for performance
         self.response_cache = {}
         
+    def parse_agent_response(self, raw_response):
+        """
+        Parse the agent response to extract analysis and student IDs
+        
+        Args:
+            raw_response (str): Raw response from the agent
+            
+        Returns:
+            dict: {'analysis': str, 'student_ids': list}
+        """
+        try:
+            # More flexible parsing - look for student IDs anywhere in the response
+            student_ids = []
+            
+            # Find all student IDs in the format S followed by digits
+            student_id_matches = re.findall(r'S1\d{3}', raw_response)  # Assuming 4-digit format like S1000
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            for sid in student_id_matches:
+                if sid not in seen:
+                    student_ids.append(sid)
+                    seen.add(sid)
+            
+            # Limit to 10 student IDs to avoid overwhelming the visualizations
+            student_ids = student_ids[:10]
+            
+            # Clean the analysis text
+            analysis = raw_response.strip()
+            
+            # If we found student IDs, add a summary
+            if student_ids:
+                analysis += f"\n\n🎯 Identified {len(student_ids)} students for visualization."
+            
+            return {
+                'analysis': analysis,
+                'student_ids': student_ids
+            }
+                
+        except Exception as e:
+            print(f"Error parsing response: {e}")
+            # Fallback to basic parsing
+            student_ids = re.findall(r'S\d+', raw_response)
+            return {
+                'analysis': raw_response,
+                'student_ids': student_ids[:10]
+            }
+    
     def get_response(self, question, timeout=30):
         """
         Get AI response with timeout and error handling
@@ -71,11 +117,12 @@ class StudentDataAIAgent:
             timeout (int): Timeout in seconds
             
         Returns:
-            str: AI response or error message
+            dict: {'analysis': str, 'student_ids': list} or error message
         """
         # Check cache first
-        if question in self.response_cache:
-            return self.response_cache[question]
+        cache_key = f"parsed_{question}"
+        if cache_key in self.response_cache:
+            return self.response_cache[cache_key]
         
         try:
             # Use threading for timeout functionality
@@ -84,7 +131,11 @@ class StudentDataAIAgent:
             def get_agent_response():
                 try:
                     response = self.agent.invoke(question)
-                    result["response"] = response.get('output', 'No response generated')
+                    # Handle different response formats
+                    if isinstance(response, dict):
+                        result["response"] = response.get('output', str(response))
+                    else:
+                        result["response"] = str(response)
                 except Exception as e:
                     result["error"] = str(e)
             
@@ -93,20 +144,35 @@ class StudentDataAIAgent:
             thread.join(timeout=timeout)
             
             if thread.is_alive():
-                return "⏱️ The query is taking too long to process. Please try a simpler question."
+                return {
+                    'analysis': "⏱️ The query is taking too long to process. Please try a simpler question.",
+                    'student_ids': []
+                }
             
             if result["error"]:
-                return f"❌ Error processing your question: {result['error']}"
+                return {
+                    'analysis': f"❌ Error processing your question: {result['error']}",
+                    'student_ids': []
+                }
             
             if result["response"]:
+                # Parse the response
+                parsed_response = self.parse_agent_response(result["response"])
+                
                 # Cache successful responses
-                self.response_cache[question] = result["response"]
-                return result["response"]
+                self.response_cache[cache_key] = parsed_response
+                return parsed_response
             else:
-                return "❌ No response was generated. Please try rephrasing your question."
+                return {
+                    'analysis': "❌ No response was generated. Please try rephrasing your question.",
+                    'student_ids': []
+                }
                 
         except Exception as e:
-            return f"❌ Unexpected error: {str(e)}"
+            return {
+                'analysis': f"❌ Unexpected error: {str(e)}",
+                'student_ids': []
+            }
     
     def get_dataset_summary(self):
         """Get a quick summary of the dataset"""
@@ -120,21 +186,21 @@ class StudentDataAIAgent:
     def suggest_questions(self):
         """Provide suggested questions users can ask"""
         suggestions = [
-            "What are the top 5 factors that correlate with high academic performance?",
-            "Show me students with unusual study patterns",
-            "Which students have high social media usage but still perform well?",
-            "What's the average study time for students with different performance levels?",
-            "Find students who sleep less than 6 hours but have high grades",
-            "What patterns do you see in exercise frequency vs academic performance?",
-            "Show me the distribution of mental health ratings across the dataset",
-            "Which students have the most balanced lifestyle and academic performance?"
+            "Show me the top 10 performing students and explain what makes them successful",
+            "Find students with unusual study patterns - high performance with low study hours",
+            "Which students have high social media usage but still perform well academically?",
+            "Show me students who sleep less than 6 hours but have high grades",
+            "Find the most balanced students - good grades, exercise, and mental health",
+            "Which students are underperforming despite good study habits?",
+            "Show me students with the highest mental health ratings and their characteristics",
+            "Find students who exercise frequently - what else do they have in common?"
         ]
         return suggestions
 
 # Global instance for the Dash app
 ai_agent = None
 
-def initialize_ai_agent(csv_path="data/student_performance_large_dataset.csv"):
+def initialize_ai_agent(csv_path="data/student_habits_performance.csv"):
     """Initialize the global AI agent instance"""
     global ai_agent
     if ai_agent is None:
@@ -142,10 +208,18 @@ def initialize_ai_agent(csv_path="data/student_performance_large_dataset.csv"):
     return ai_agent
 
 def get_ai_response(question):
-    """Get AI response - main function for Dash callbacks"""
+    """
+    Get AI response - main function for Dash callbacks
+    
+    Returns:
+        dict: {'analysis': str, 'student_ids': list}
+    """
     global ai_agent
     if ai_agent is None:
-        return "❌ AI Agent not initialized. Please refresh the page."
+        return {
+            'analysis': "❌ AI Agent not initialized. Please refresh the page.",
+            'student_ids': []
+        }
     
     return ai_agent.get_response(question)
 
@@ -162,17 +236,17 @@ def test_agent():
     agent = StudentDataAIAgent()
     
     test_questions = [
-        "How many students are in the dataset?",
-        "What are the column names?",
-        "Show me 3 interesting students and explain why they are interesting",
-        "What's the correlation between study hours and performance?"
+        "Show me 5 high-performing students",
+        "What's the average study time across all students?",
+        "Find students with interesting patterns"
     ]
     
     print("Testing AI Agent...")
     for question in test_questions:
         print(f"\nQ: {question}")
         response = agent.get_response(question)
-        print(f"A: {response}")
+        print(f"Analysis: {response['analysis']}")
+        print(f"Student IDs: {response['student_ids']}")
         print("-" * 50)
 
 if __name__ == "__main__":

@@ -51,12 +51,30 @@ def register_callbacks(app):
         Output('selected-students-store', 'data'),
         Input('scatter-tsne-plot', 'selectedData'),
         Input('scatter-tsne-plot', 'figure'),  # Reset selection when plot changes
+        Input('ai-student-selection-store', 'data'),  # NEW: Listen to AI selections
         State('student-count-slider', 'value'),
         State('selected-performance-group-store', 'data')
     )
-    def update_selected_students(selectedData, figure, student_count, selected_group):
-        """Store selected student IDs from scatter/t-SNE plot"""
-        print("=== DEBUG: Selection callback triggered ===")
+    def update_selected_students(selectedData, figure, ai_selection, student_count, selected_group):
+        """Store selected student IDs from scatter/t-SNE plot or AI chat"""
+        from dash import callback_context
+        
+        ctx = callback_context
+        if not ctx.triggered:
+            return None
+        
+        # Check which input triggered the callback
+        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+        # If triggered by AI, return the AI-selected students
+        if trigger_id == 'ai-student-selection-store':
+            if ai_selection and len(ai_selection) > 0:
+                print(f"AI selected students: {ai_selection}")
+                return ai_selection
+            return None
+        
+        # Original plot selection logic
+        print("=== DEBUG: Plot selection callback triggered ===")
         print(f"selectedData: {selectedData}")
         
         if selectedData is None:
@@ -87,7 +105,7 @@ def register_callbacks(app):
                 print(f"  No student_id found in point")
         
         print(f"Selected student IDs: {selected_student_ids}")
-        return selected_student_ids if selected_student_ids else None   
+        return selected_student_ids if selected_student_ids else None
 
     @app.callback(
         Output('x-axis-dropdown', 'style'),
@@ -129,6 +147,16 @@ def register_callbacks(app):
         Input('selected-students-store', 'data')  # NEW: Add selection input
     )
     def update_performance_donut_plot(student_count, color_scheme, selected_students):
+        # Add this debugging line to each callback
+        if selected_students:
+            print(f"DEBUG: Filtering {len(df)} students to {selected_students}")
+            # Check if filtering works
+            if 'student_id' in df.columns:
+                filtered = df[df['student_id'].astype(str).isin([str(s) for s in selected_students])]
+                print(f"DEBUG: Found {len(filtered)} matching students")
+            else:
+                print("DEBUG: No student_id column found!")
+
         return create_performance_donut_plot(df, student_count, color_scheme, categorize_performance, selected_students)
 
     # UPDATED: Parallel plot with selection filtering
@@ -140,6 +168,16 @@ def register_callbacks(app):
         Input('selected-students-store', 'data')  # NEW: Add selection input
     )
     def update_parallel_plot(student_count, selected_group, color_scheme, selected_students):
+        # Add this debugging line to each callback
+        if selected_students:
+            print(f"DEBUG: Filtering {len(df)} students to {selected_students}")
+            # Check if filtering works
+            if 'student_id' in df.columns:
+                filtered = df[df['student_id'].astype(str).isin([str(s) for s in selected_students])]
+                print(f"DEBUG: Found {len(filtered)} matching students")
+            else:
+                print("DEBUG: No student_id column found!")
+
         return create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
     # UPDATED: Categorical bar plot with selection filtering
@@ -151,6 +189,16 @@ def register_callbacks(app):
         Input('selected-students-store', 'data')  # NEW: Add selection input
     )
     def update_categorical_bar_plot(student_count, selected_group, color_scheme, selected_students):
+       # Add this debugging line to each callback
+       if selected_students:
+            print(f"DEBUG: Filtering {len(df)} students to {selected_students}")
+            # Check if filtering works
+            if 'student_id' in df.columns:
+                filtered = df[df['student_id'].astype(str).isin([str(s) for s in selected_students])]
+                print(f"DEBUG: Found {len(filtered)} matching students")
+            else:
+                print("DEBUG: No student_id column found!")
+                
        return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
     # Updated callback to include all 7 features
@@ -171,3 +219,5 @@ def register_callbacks(app):
         return create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_health_rating, 
                                 social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
                                 attendance_percentage, color_scheme)
+    
+

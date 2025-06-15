@@ -13,7 +13,7 @@ def register_chat_callbacks(app):
     df = app.df
     
     # Initialize the AI agent
-    ai_agent = initialize_ai_agent("data/student_performance_large_dataset.csv")
+    ai_agent = initialize_ai_agent("data/student_habits_performance.csv")
 
     @app.callback(
         Output('chat-container', 'style'),
@@ -67,6 +67,7 @@ def register_chat_callbacks(app):
         Output('chat-messages', 'children'),
         Output('chat-input', 'value'),
         Output('chat-history-store', 'data'),
+        Output('ai-student-selection-store', 'data'),  # NEW: Output for student IDs
         Input('chat-send-button', 'n_clicks'),
         Input('chat-input', 'n_submit'),
         State('chat-input', 'value'),
@@ -81,7 +82,7 @@ def register_chat_callbacks(app):
         """Handle chat input and generate AI responses"""
         
         if not user_input or user_input.strip() == "":
-            return chat_history or [], "", chat_history or []
+            return chat_history or [], "", chat_history or [], None
         
         # Initialize chat history if None
         if chat_history is None:
@@ -96,20 +97,30 @@ def register_chat_callbacks(app):
         }
         chat_history.append(user_message)
         
-        # Generate AI response using the AI agent
-        ai_response = get_ai_response(user_input.strip())
+        # Generate AI response using the AI agent (now returns structured data)
+        ai_response_data = get_ai_response(user_input.strip())
+        
+        # Extract analysis text and student IDs
+        analysis_text = ai_response_data.get('analysis', 'No response generated')
+        student_ids = ai_response_data.get('student_ids', [])
+        
+        # Add analysis info if student IDs were found
+        if student_ids:
+            analysis_text += f"\n\n📊 Found {len(student_ids)} relevant students - visualizations updated!"
         
         ai_message = {
             'type': 'ai',
-            'content': ai_response,
-            'timestamp': timestamp
+            'content': analysis_text,
+            'timestamp': timestamp,
+            'student_ids': student_ids  # Store student IDs in message for reference
         }
         chat_history.append(ai_message)
         
         # Convert to display format
         chat_display = format_chat_messages(chat_history)
         
-        return chat_display, "", chat_history
+        # Return student IDs for visualization updates
+        return chat_display, "", chat_history, student_ids
 
     @app.callback(
         Output('chat-context-info', 'children'),
@@ -164,6 +175,10 @@ def format_chat_messages(chat_history):
             # Convert markdown-style formatting to HTML
             content = msg['content'].replace('**', '')  # Remove markdown bold
             content = content.replace('•', '•')  # Ensure bullet points
+            
+            # Add visual indicator if student IDs are present
+            if msg.get('student_ids') and len(msg['student_ids']) > 0:
+                content = f"🎯 {content}"
             
             messages.append(
                 html.Div([
