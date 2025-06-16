@@ -4,7 +4,13 @@ from datetime import datetime
 import pandas as pd
 from utils.data_processing import categorize_performance
 from utils.AI_Agent import initialize_ai_agent, get_ai_response
-
+from components.chat_styles import (
+    user_message_style,
+    ai_message_style,
+    message_container_user,
+    message_container_ai,
+    timestamp_style
+)
 
 def register_chat_callbacks(app):
     """Register all chat-related callbacks for the dashboard"""
@@ -162,31 +168,29 @@ def format_chat_messages(chat_history):
     
     messages = []
     for msg in chat_history:
+        timestamp = html.Span(msg['timestamp'], style=timestamp_style)
+
         if msg['type'] == 'user':
             messages.append(
                 html.Div([
                     html.Div([
-                        html.Span(msg['content'], className='user-message-text'),
-                        html.Span(msg['timestamp'], className='message-timestamp')
-                    ], className='user-message')
-                ], className='message-container user-container')
+                        html.Div(msg['content'], style=user_message_style),
+                        timestamp
+                    ])
+                ], style=message_container_user)
             )
         else:  # AI message
-            # Convert markdown-style formatting to HTML
-            content = msg['content'].replace('**', '')  # Remove markdown bold
-            content = content.replace('•', '•')  # Ensure bullet points
-            
-            # Add visual indicator if student IDs are present
-            if msg.get('student_ids') and len(msg['student_ids']) > 0:
+            content = msg['content'].replace('**', '')  # Optional: strip markdown bold
+            if msg.get('student_ids'):
                 content = f"🎯 {content}"
             
             messages.append(
                 html.Div([
                     html.Div([
-                        html.Pre(content, className='ai-message-text'),
-                        html.Span(msg['timestamp'], className='message-timestamp')
-                    ], className='ai-message')
-                ], className='message-container ai-container')
+                        html.Div(content, style=ai_message_style),
+                        timestamp
+                    ])
+                ], style=message_container_ai)
             )
     
     return messages
