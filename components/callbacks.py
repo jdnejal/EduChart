@@ -182,17 +182,119 @@ def register_callbacks(app):
 
         return create_parallel_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
+    @app.callback(
+        Output('selected-categories-store', 'data'),
+        Input('categorical-bar-plot', 'restyleData'),
+        State('selected-categories-store', 'data'),
+        State('categorical-bar-plot', 'figure'),
+        prevent_initial_call=True
+    )
+    def update_selected_categories(restyle_data, current_selected_categories, current_figure):
+        """Update selected categories when legend items are clicked"""
+        
+        # Debug prints - remove these after testing
+        print("=== DEBUG INFO ===")
+        print("restyle_data:", restyle_data)
+        print("current_selected_categories:", current_selected_categories)
+        
+        if restyle_data is None:
+            print("restyle_data is None, returning current")
+            return current_selected_categories
+        
+        # Get all available feature names (must match the ones in create_categorical_bar_plot)
+        categorical_features = [
+            'Gender',
+            'Part Time Job', 
+            'Diet Quality',
+            'Parental Education Level',
+            'Internet Quality',
+            'Extracurricular Participation'
+        ]
+        
+        # Initialize selected_categories if None
+        if current_selected_categories is None:
+            current_selected_categories = categorical_features.copy()
+            print("Initialized categories:", current_selected_categories)
+        
+        # Process restyle data
+        print("Processing restyle_data...")
+        
+        if isinstance(restyle_data, list) and len(restyle_data) >= 2:
+            restyle_dict = restyle_data[0]
+            trace_indices = restyle_data[1]
+            
+            print("restyle_dict:", restyle_dict)
+            print("trace_indices:", trace_indices)
+            
+            # Handle visibility changes
+            if 'visible' in restyle_dict:
+                visibility_changes = restyle_dict['visible']
+                print("visibility_changes:", visibility_changes)
+                
+                # Ensure trace_indices is a list
+                if not isinstance(trace_indices, list):
+                    trace_indices = [trace_indices]
+                
+                # Get current figure trace names to map correctly
+                if current_figure and 'data' in current_figure:
+                    trace_names = [trace.get('name', '') for trace in current_figure['data']]
+                    print("Current trace names:", trace_names)
+                    
+                    updated_categories = current_selected_categories.copy()
+                    
+                    for i, trace_idx in enumerate(trace_indices):
+                        if trace_idx < len(trace_names):
+                            feature_name = trace_names[trace_idx]
+                            
+                            # Get the visibility value for this trace
+                            if isinstance(visibility_changes, list):
+                                visibility_value = visibility_changes[i] if i < len(visibility_changes) else visibility_changes[0]
+                            else:
+                                visibility_value = visibility_changes
+                            
+                            print(f"Feature: {feature_name}, visibility_value: {visibility_value}")
+                            
+                            # In Plotly: True = visible, False = hidden, 'legendonly' = hidden but in legend
+                            is_visible = visibility_value is True
+                            
+                            print(f"Feature: {feature_name}, is_visible: {is_visible}")
+                            
+                            # Update the selected categories list
+                            if is_visible and feature_name not in updated_categories:
+                                updated_categories.append(feature_name)
+                                print(f"Added {feature_name}")
+                            elif not is_visible and feature_name in updated_categories:
+                                updated_categories.remove(feature_name)
+                                print(f"Removed {feature_name}")
+                    
+                    print("Updated categories:", updated_categories)
+                    return updated_categories
+        
+        # Alternative approach: extract visibility directly from current figure
+        if current_figure and 'data' in current_figure:
+            visible_categories = []
+            for trace in current_figure['data']:
+                if trace.get('visible', True) is True:  # True or not specified means visible
+                    visible_categories.append(trace.get('name', ''))
+            
+            print("Visible categories from figure:", visible_categories)
+            if visible_categories:
+                return visible_categories
+        
+        print("Returning current_selected_categories")
+        return current_selected_categories
+
     # UPDATED: Categorical bar plot with selection filtering
     @app.callback(
         Output('categorical-bar-plot', 'figure'),
         Input('student-count-slider', 'value'),
         Input('selected-performance-group-store', 'data'),
         Input('color-scheme-dropdown', 'value'),
-        Input('selected-students-store', 'data')  
+        Input('selected-students-store', 'data'),
+        Input('selected-categories-store', 'data')
     )
-    def update_categorical_bar_plot(student_count, selected_group, color_scheme, selected_students):
-                
-       return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
+    def update_categorical_bar_plot(student_count, selected_group, color_scheme, selected_students, selected_categories):
+        return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students, selected_categories)
 
     # Updated callback to include all 7 features
     @app.callback(

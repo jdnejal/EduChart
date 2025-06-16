@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from utils.data_processing import get_color_schemes
 
 
-def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None, current_visibility=None):
+def create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students=None, selected_categories=None):
     """Create categorical bar plot with toggleable features and preserved visibility"""
     sample_df = df.sample(n=min(student_count, len(df)), random_state=42).copy()
     sample_df['Performance_Group'] = sample_df['exam_score'].apply(categorize_performance)
@@ -56,24 +56,29 @@ def create_categorical_bar_plot(df, student_count, selected_group, color_scheme,
     color_schemes = get_color_schemes()
     colors = color_schemes.get(color_scheme, color_schemes['default'])
     
-    # Create a visibility map from current_visibility if provided
-    visibility_map = {}
-    if current_visibility:
-        for i, vis in enumerate(current_visibility):
-            if i < len(available_features):
-                visibility_map[available_features[i]] = vis
+    # If no selected_categories provided, show all categories by default
+    if selected_categories is None:
+        selected_categories = [feature.replace('_', ' ').title() for feature in available_features]
     
     for i, feature in enumerate(available_features):
         if feature in filtered_df.columns:
             counts = filtered_df[feature].value_counts()
+            feature_name = feature.replace('_', ' ').title()
+            
+            # Determine visibility based on selected_categories
+            # Use 'legendonly' for hidden traces so they stay in legend, True for visible
+            if feature_name in selected_categories:
+                visibility = True
+            else:
+                visibility = 'legendonly'
             
             fig.add_trace(go.Bar(
-                name=feature.replace('_', ' ').title(),
+                name=feature_name,
                 x=counts.index,
                 y=counts.values,
                 marker_color=colors[i % len(colors)],
                 opacity=0.8,
-                visible=True  # Show all categories by default instead of 'legendonly'
+                visible=visibility  # Use 'legendonly' to keep in legend but hidden
             ))
     
     fig.update_layout(
