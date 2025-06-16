@@ -137,6 +137,8 @@ def register_callbacks(app):
         Input('color-scheme-dropdown', 'value')
     )
     def update_scatter_tsne_plot(plot_type, x_axis, y_axis, search_value, student_count, selected_group, color_scheme):
+        if (search_value): search_value = search_value.upper()
+
         return create_scatter_tsne_plot(df, plot_type, x_axis, y_axis, search_value, student_count, selected_group, color_scheme, categorize_performance)
 
     # UPDATED: Performance donut plot with selection filtering
@@ -186,24 +188,22 @@ def register_callbacks(app):
         Input('student-count-slider', 'value'),
         Input('selected-performance-group-store', 'data'),
         Input('color-scheme-dropdown', 'value'),
-        Input('selected-students-store', 'data')  # NEW: Add selection input
+        Input('selected-students-store', 'data')  
     )
     def update_categorical_bar_plot(student_count, selected_group, color_scheme, selected_students):
-       # Add this debugging line to each callback
-       if selected_students:
-            print(f"DEBUG: Filtering {len(df)} students to {selected_students}")
-            # Check if filtering works
-            if 'student_id' in df.columns:
-                filtered = df[df['student_id'].astype(str).isin([str(s) for s in selected_students])]
-                print(f"DEBUG: Found {len(filtered)} matching students")
-            else:
-                print("DEBUG: No student_id column found!")
                 
        return create_categorical_bar_plot(df, student_count, selected_group, color_scheme, categorize_performance, selected_students)
 
     # Updated callback to include all 7 features
     @app.callback(
         Output('donut-chart', 'figure'),
+        Output('study_hours_per_day', 'value'),
+        Output('mental_health_rating', 'value'),
+        Output('social_media_hours', 'value'),
+        Output('sleep_hours', 'value'),
+        Output('netflix_hours', 'value'),
+        Output('exercise_frequency', 'value'),
+        Output('attendance_percentage', 'value'),
         Input('study_hours_per_day', 'value'),
         Input('mental_health_rating', 'value'),
         Input('social_media_hours', 'value'),
@@ -211,13 +211,25 @@ def register_callbacks(app):
         Input('netflix_hours', 'value'),
         Input('exercise_frequency', 'value'),
         Input('attendance_percentage', 'value'),
+        Input('search-input', 'value'),
         Input('color-scheme-dropdown', 'value')
     )
     def update_donut_chart(study_hours_per_day, mental_health_rating, social_media_hours,
-                           sleep_hours, netflix_hours, exercise_frequency, attendance_percentage, color_scheme):
+                           sleep_hours, netflix_hours, exercise_frequency, attendance_percentage, search_input, color_scheme):
 
+        if (search_input):
+            search_input = search_input.upper()
+            selected_row = df[df['student_id']==search_input]
+            
+            study_hours_per_day=float(selected_row['study_hours_per_day'])
+            mental_health_rating=int(selected_row['mental_health_rating'])
+            social_media_hours=float(selected_row['social_media_hours'])
+            sleep_hours=float(selected_row['sleep_hours'])
+            netflix_hours=float(selected_row['netflix_hours'])
+            exercise_frequency=int(selected_row['exercise_frequency'])
+            attendance_percentage=int(selected_row['attendance_percentage'])
+        
         return create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_health_rating, 
                                 social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
-                                attendance_percentage, color_scheme)
-    
+                                attendance_percentage, color_scheme), study_hours_per_day, mental_health_rating, social_media_hours, sleep_hours, netflix_hours, exercise_frequency, attendance_percentage
 
