@@ -19,6 +19,7 @@ def register_callbacks(app):
     # Access the globally stored data
     df = app.df
     prediction_model = app.prediction_model
+    scaler = app.scaler
 
     # Callbacks
     @app.callback(
@@ -330,8 +331,8 @@ def register_callbacks(app):
             netflix_hours=float(selected_row['netflix_hours'])
             exercise_frequency=int(selected_row['exercise_frequency'])
             attendance_percentage=int(selected_row['attendance_percentage'])
-        
-        return create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_health_rating, 
+
+        return create_prediction_donut_plot(scaler, prediction_model, study_hours_per_day, mental_health_rating, 
                                 social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
                                 attendance_percentage, color_scheme), study_hours_per_day, mental_health_rating, social_media_hours, sleep_hours, netflix_hours, exercise_frequency, attendance_percentage
 

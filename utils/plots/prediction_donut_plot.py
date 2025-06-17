@@ -4,7 +4,7 @@ import pandas as pd
 from utils.data_processing import get_color_schemes
 
 
-def create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_health_rating, 
+def create_prediction_donut_plot(scaler, prediction_model, study_hours_per_day, mental_health_rating, 
                                 social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
                                 attendance_percentage, color_scheme):
     """Create donut chart showing predicted exam score"""
@@ -19,7 +19,8 @@ def create_prediction_donut_plot(prediction_model, study_hours_per_day, mental_h
         "attendance_percentage": attendance_percentage
     }])
 
-    prediction = min(prediction_model.predict(input_data.values)[0], 100)
+    input_scaled = scaler.transform(input_data)
+    prediction = min(prediction_model.predict(input_scaled)[0], 100)
     
     # Use dynamic color based on prediction bucket
     color_schemes = get_color_schemes()
