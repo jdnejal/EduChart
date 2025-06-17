@@ -73,7 +73,8 @@ def register_chat_callbacks(app):
         Output('chat-messages', 'children'),
         Output('chat-input', 'value'),
         Output('chat-history-store', 'data'),
-        Output('ai-student-selection-store', 'data'),  # NEW: Output for student IDs
+        Output('ai-student-selection-store', 'data'),
+        Output('chat-loading-output', 'children'),  # NEW: Loading indicator output
         Input('chat-send-button', 'n_clicks'),
         Input('chat-input', 'n_submit'),
         State('chat-input', 'value'),
@@ -88,7 +89,7 @@ def register_chat_callbacks(app):
         """Handle chat input and generate AI responses"""
         
         if not user_input or user_input.strip() == "":
-            return chat_history or [], "", chat_history or [], None
+            return chat_history or [], "", chat_history or [], None, ""
         
         # Initialize chat history if None
         if chat_history is None:
@@ -102,6 +103,9 @@ def register_chat_callbacks(app):
             'timestamp': timestamp
         }
         chat_history.append(user_message)
+        
+        # Show loading indicator while processing
+        loading_display = format_chat_messages(chat_history)
         
         # Generate AI response using the AI agent (now returns structured data)
         ai_response_data = get_ai_response(user_input.strip())
@@ -125,8 +129,8 @@ def register_chat_callbacks(app):
         # Convert to display format
         chat_display = format_chat_messages(chat_history)
         
-        # Return student IDs for visualization updates
-        return chat_display, "", chat_history, student_ids
+        # Return student IDs for visualization updates, empty loading indicator
+        return chat_display, "", chat_history, student_ids, ""
 
     @app.callback(
         Output('chat-context-info', 'children'),

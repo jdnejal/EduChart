@@ -165,7 +165,7 @@ def create_ai_chat_interface():
             id='chat-loading',
             type='dot',
             children=[html.Div(id='chat-loading-output')],
-            style={'position': 'fixed', 'bottom': '550px', 'right': '220px', 'zIndex': '1003'}
+            style={'position': 'fixed', 'bottom': '300px', 'right': '155px', 'zIndex': '1003'}
         ),
         
         # Store for chat history
