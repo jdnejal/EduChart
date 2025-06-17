@@ -1,4 +1,4 @@
-from dash import Input, Output, State
+from dash import Input, Output, State, callback_context, no_update
 from utils.data_processing import categorize_performance
 
 import plotly.express as px
@@ -315,24 +315,68 @@ def register_callbacks(app):
         Input('exercise_frequency', 'value'),
         Input('attendance_percentage', 'value'),
         Input('search-input', 'value'),
-        Input('color-scheme-dropdown', 'value')
+        Input('color-scheme-dropdown', 'value'),
+
     )
     def update_donut_chart(study_hours_per_day, mental_health_rating, social_media_hours,
-                           sleep_hours, netflix_hours, exercise_frequency, attendance_percentage, search_input, color_scheme):
-
-        if (search_input):
+                        sleep_hours, netflix_hours, exercise_frequency, attendance_percentage, 
+                        search_input, color_scheme):
+        
+        from dash import callback_context, no_update
+        
+        # Check what triggered the callback
+        ctx = callback_context
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+        
+        # If search input changed and has a value, update sliders to student's values
+        if triggered_id == 'search-input' and search_input:
             search_input = search_input.upper()
-            selected_row = df[df['student_id']==search_input]
+            selected_row = df[df['student_id'] == search_input]
             
-            study_hours_per_day=float(selected_row['study_hours_per_day'])
-            mental_health_rating=int(selected_row['mental_health_rating'])
-            social_media_hours=float(selected_row['social_media_hours'])
-            sleep_hours=float(selected_row['sleep_hours'])
-            netflix_hours=float(selected_row['netflix_hours'])
-            exercise_frequency=int(selected_row['exercise_frequency'])
-            attendance_percentage=int(selected_row['attendance_percentage'])
-
-        return create_prediction_donut_plot(scaler, prediction_model, study_hours_per_day, mental_health_rating, 
-                                social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
-                                attendance_percentage, color_scheme), study_hours_per_day, mental_health_rating, social_media_hours, sleep_hours, netflix_hours, exercise_frequency, attendance_percentage
-
+            if not selected_row.empty:
+                # Get student's values
+                student_study_hours = float(selected_row['study_hours_per_day'].iloc[0])
+                student_mental_health = int(selected_row['mental_health_rating'].iloc[0])
+                student_social_media = float(selected_row['social_media_hours'].iloc[0])
+                student_sleep_hours = float(selected_row['sleep_hours'].iloc[0])
+                student_netflix_hours = float(selected_row['netflix_hours'].iloc[0])
+                student_exercise_freq = int(selected_row['exercise_frequency'].iloc[0])
+                student_attendance = int(selected_row['attendance_percentage'].iloc[0])
+                
+                # Create donut chart with student's values
+                donut_figure = create_prediction_donut_plot(
+                    scaler, prediction_model, student_study_hours, student_mental_health, 
+                    student_social_media, student_sleep_hours, student_netflix_hours, 
+                    student_exercise_freq, student_attendance, color_scheme
+                )
+                
+                # Return updated sliders and chart
+                return (donut_figure, student_study_hours, student_mental_health, 
+                        student_social_media, student_sleep_hours, student_netflix_hours, 
+                        student_exercise_freq, student_attendance)
+        
+        # If search input was cleared, don't update sliders but update chart
+        elif triggered_id == 'search-input' and not search_input:
+            # Create donut chart with current slider values
+            donut_figure = create_prediction_donut_plot(
+                scaler, prediction_model, study_hours_per_day, mental_health_rating, 
+                social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
+                attendance_percentage, color_scheme
+            )
+            
+            # Don't update sliders, just the chart
+            return (donut_figure, no_update, no_update, no_update, no_update, 
+                    no_update, no_update, no_update)
+        
+        # For all other cases (slider changes, color scheme changes), update only the chart
+        else:
+            # Create donut chart with current slider values
+            donut_figure = create_prediction_donut_plot(
+                scaler, prediction_model, study_hours_per_day, mental_health_rating, 
+                social_media_hours, sleep_hours, netflix_hours, exercise_frequency, 
+                attendance_percentage, color_scheme
+            )
+            
+            # Don't update sliders, just the chart
+            return (donut_figure, no_update, no_update, no_update, no_update, 
+                    no_update, no_update, no_update)
