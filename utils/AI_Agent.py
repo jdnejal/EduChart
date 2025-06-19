@@ -127,12 +127,6 @@ class StudentDataAIAgent:
             # Use threading for timeout functionality
             result = {"response": None, "error": None}
             
-            if (question == "Show me the top 30 high performing students?"):
-                time.sleep(3)
-                return {
-                    'analysis': "The top 30 highest-performing students are listed below.  Student S1001 achieved the highest exam score of 100.0.  Many students scored 99.0 and 98.0.",
-                    'student_ids': ['S1001', 'S1054', 'S1104', 'S1154', 'S1204', 'S1254', 'S1304', 'S1354', 'S1404', 'S1454', 'S1504', 'S1554', 'S1604', 'S1654', 'S1704', 'S1754', 'S1804', 'S1854', 'S1904', 'S1954', 'S1053', 'S1103', 'S1153', 'S1203', 'S1253', 'S1303', 'S1353', 'S1403', 'S1453', 'S1503']
-                }
 
             def get_agent_response():
                 try:

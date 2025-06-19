@@ -1,4 +1,5 @@
-# Custom CSS styles
+# Styling for the components of the visualizations
+
 small_tile_style = {
     'backgroundColor': 'white',
     'borderRadius': '12px',

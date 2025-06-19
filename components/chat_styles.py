@@ -1,3 +1,5 @@
+# Styling for the AI chat bot
+
 user_message_style = {
     'backgroundColor': '#3498db',
     'borderRadius': '12px',
