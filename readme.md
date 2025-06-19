@@ -2,6 +2,7 @@
 
 The EduChart dashboard is a tool for instructors and student advisors to analyze data about students.
 The tool allows the users to filter data, predict exam scores and analyze using a custom AI-powered chatbot.
+The tool is built in Python with Dash and has uses the sklearn RandomForestRegressor for its predictions. In addition, the tool includes an AI-driven chatbot which is built upon Langchains framework using the Gemini LLM.
 
 ## Running the tool
 
