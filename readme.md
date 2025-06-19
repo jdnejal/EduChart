@@ -8,6 +8,8 @@ The tool is built in Python with Dash and has uses the sklearn RandomForestRegre
 
 1. Download the packages in `requirements.txt`
 2. Run python `app.py` in the terminal
+3. The file will now run on a local machine and can be accessed by opening the `http://127.0.0.1:8050` path (might differ per machine).
+4. Enjoy!
 
 # Folder Structure
 
